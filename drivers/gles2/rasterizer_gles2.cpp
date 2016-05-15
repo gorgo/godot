@@ -6496,7 +6496,7 @@ void RasterizerGLES2::_render_list_forward(RenderList *p_render_list,const Trans
 			if (!*e->additive_ptr) {
 
 				additive=false;
-				*e->additive_ptr=true;				
+				*e->additive_ptr=true;
 			} else {
 				additive=true;
 			}
@@ -6683,7 +6683,7 @@ void RasterizerGLES2::_render_list_forward(RenderList *p_render_list,const Trans
 			}
 			rebind=true;
 		}
-		
+
 		if  (use_hw_skeleton_xform && (skeleton!=prev_skeleton||morph_values!=prev_morph_values)) {
 			if (!prev_skeleton || !skeleton)
 				rebind=true; //went from skeleton <-> no skeleton, needs rebind
@@ -6717,7 +6717,7 @@ void RasterizerGLES2::_render_list_forward(RenderList *p_render_list,const Trans
 			DEBUG_TEST_ERROR("Setup geometry");
 		};
 
-		if (i==0 || light!=prev_light || rebind) {			
+		if (i==0 || light!=prev_light || rebind) {
 			if (e->light!=0xFFFF) {
 				_setup_light(e->light);
 
@@ -6957,7 +6957,7 @@ void RasterizerGLES2::_process_glow_bloom() {
 	_copy_screen_quad();
 
 	copy_shader.set_conditional(CopyShaderGLES2::USE_GLOW_COPY,false);
-	copy_shader.set_conditional(CopyShaderGLES2::USE_HDR,false);	
+	copy_shader.set_conditional(CopyShaderGLES2::USE_HDR,false);
 	int passes = current_env->fx_param[VS::ENV_FX_PARAM_GLOW_BLUR_PASSES];
 	Vector2 psize(1.0/framebuffer.blur_size,1.0/framebuffer.blur_size);
 	float pscale = current_env->fx_param[VS::ENV_FX_PARAM_GLOW_BLUR_SCALE];
@@ -7426,7 +7426,7 @@ void RasterizerGLES2::end_scene() {
 			_process_hdr();
 		}
 		if (current_env && current_env->fx_enabled[VS::ENV_FX_GLOW]) {
-			_process_glow_bloom();			
+			_process_glow_bloom();
 			int glow_transfer_mode=current_env->fx_param[VS::ENV_FX_PARAM_GLOW_BLUR_BLEND_MODE];
 			if (glow_transfer_mode==1)
 				copy_shader.set_conditional(CopyShaderGLES2::USE_GLOW_SCREEN,true);
@@ -8568,7 +8568,7 @@ void RasterizerGLES2::canvas_draw_polygon(int p_vertex_count, const int* p_indic
 
 
 #else //WebGL specific impl.
-	glBindBuffer(GL_ARRAY_BUFFER, gui_quad_buffer);    
+	glBindBuffer(GL_ARRAY_BUFFER, gui_quad_buffer);
     float *b = GlobalVertexBuffer;
     int ofs = 0;
     if(p_vertex_count > MAX_POLYGON_VERTICES){
@@ -9429,7 +9429,7 @@ void RasterizerGLES2::canvas_render_items(CanvasItem *p_item_list,int p_z,const 
 				draw_viewport_func(ci->vp_render->owner,ci->vp_render->udata,ci->vp_render->rect);
 			}
 			memdelete(ci->vp_render);
-			ci->vp_render=NULL;			
+			ci->vp_render=NULL;
 			canvas_last_material=NULL;
 			canvas_use_modulate=p_modulate!=Color(1,1,1,1);
 			canvas_modulate=p_modulate;
@@ -10977,7 +10977,7 @@ void RasterizerGLES2::init() {
 
 
 	//etc_supported=false;
-
+	use_hw_skeleton_xform = false;
 #endif
 
 	//use_rgba_shadowmaps=true;
@@ -11423,7 +11423,7 @@ RasterizerGLES2::RasterizerGLES2(bool p_compress_arrays,bool p_keep_ram_copy,boo
 void RasterizerGLES2::restore_framebuffer() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, base_framebuffer);
-	
+
 }
 
 RasterizerGLES2::~RasterizerGLES2() {
