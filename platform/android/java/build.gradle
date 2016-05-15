@@ -1,0 +1,77 @@
+buildscript {
+	repositories {
+		jcenter()
+	}
+	dependencies {
+		classpath 'com.android.tools.build:gradle:1.2.0'
+	}
+}
+
+apply plugin: 'com.android.application'
+
+allprojects {
+    repositories {
+	mavenCentral()
+	
+    }
+}
+
+dependencies {
+
+	compile 'com.google.android.gms:play-services-analytics:8.4.0'
+compile files('../../../modules/appodeal/jar/android-support-v7-recyclerview-23.1.1.jar', '../../../modules/appodeal/jar/applovin-6.1.5.jar', '../../../modules/appodeal/jar/appodeal-1.14.12.jar', '../../../modules/appodeal/jar/chartboost-6.4.1.jar', '../../../modules/appodeal/jar/flurry-analytics-6.2.0.jar', '../../../modules/appodeal/jar/inmobi-5.2.3.jar', '../../../modules/appodeal/jar/my-target-4.3.10.jar', '../../../modules/appodeal/jar/unity-ads-1.4.7.jar', '../../../modules/appodeal/jar/yandex-metrica-2.32.jar')
+compile 'com.google.android.gms:play-services-ads:8.4.0'
+compile 'com.google.android.gms:play-services-games:8.4.0'
+
+}
+
+android {
+
+	lintOptions {
+		abortOnError false
+	}
+
+	compileSdkVersion 19
+	buildToolsVersion "19.1"
+
+	packagingOptions {
+		exclude 'META-INF/LICENSE'
+		exclude 'META-INF/NOTICE'
+	}
+	defaultConfig {
+		minSdkVersion 14
+		targetSdkVersion 19
+	}
+	sourceSets {
+		main {
+			manifest.srcFile 'AndroidManifest.xml'
+			java.srcDirs = ['src'
+				,'/home/gorgo/projects/godot/modules/googleAnalytics/src','/home/gorgo/projects/godot/modules/appodeal/src','/home/gorgo/projects/godot/modules/GodotGoogleGamePlayServices/src'
+			]
+			resources.srcDirs = [
+				'res'
+				,'/home/gorgo/projects/godot/modules/GodotGoogleGamePlayServices/res'
+			]
+			res.srcDirs = [
+				'res'
+				,'/home/gorgo/projects/godot/modules/GodotGoogleGamePlayServices/res'
+			]
+		//            libs.srcDirs = ['libs']
+			aidl.srcDirs = [
+				'aidl'
+				
+			]
+			assets.srcDirs = [
+				'assets'
+				
+			]
+			jniLibs.srcDirs = [
+				'libs'
+				
+			]
+		}
+
+	}
+
+
+}
