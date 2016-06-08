@@ -510,13 +510,13 @@ class EditorFontImportDialog : public ConfirmationDialog {
 
 		if (source->get_line_edit()->get_text()=="") {
 			error_dialog->set_text(TTR("No source font file!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 		}
 
 		if (dest->get_line_edit()->get_text()=="") {
 			error_dialog->set_text(TTR("No target font resource!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 		}
 
@@ -527,8 +527,8 @@ class EditorFontImportDialog : public ConfirmationDialog {
 		Ref<ResourceImportMetadata> rimd = get_rimd();
 
 		if (rimd.is_null()) {
-			error_dialog->set_text(TTR("Can't load/process source font"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->set_text(TTR("Can't load/process source font."));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 		}
 
@@ -536,7 +536,7 @@ class EditorFontImportDialog : public ConfirmationDialog {
 
 		if (err!=OK) {
 			error_dialog->set_text(TTR("Couldn't save font."));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 		}
 
@@ -573,7 +573,7 @@ public:
 
 	void popup_import(const String& p_path) {
 
-		popup_centered(Size2(600,500));
+		popup_centered(Size2(600,500)*EDSCALE);
 
 		if (p_path!="") {
 
@@ -599,6 +599,13 @@ public:
 
 			font_size->set_val(rimd->get_option("font/size"));
 		}
+	}
+
+
+	void set_source_and_dest(const String& p_font,const String& p_dest) {
+		source->get_line_edit()->set_text(p_font);
+		dest->get_line_edit()->set_text(p_dest);
+		_prop_changed();
 	}
 
 	EditorFontImportDialog(EditorFontImportPlugin *p_plugin) {
@@ -657,14 +664,14 @@ public:
 		testhb->add_child(test_color);
 
 		vbl->add_spacer();
-		vbl->add_margin_child(TTR("Test: "),testhb);
+		vbl->add_margin_child(TTR("Test:")+" ",testhb);
 		/*
 		HBoxContainer *upd_hb = memnew( HBoxContainer );
 //		vbl->add_child(upd_hb);
 		upd_hb->add_spacer();
 		Button *update = memnew( Button);
 		upd_hb->add_child(update);
-		update->set_text(TTR("Update"));
+		update->set_text("Update");
 		update->connect("pressed",this,"_update");
 */
 		options = memnew( _EditorFontImportOptions );
@@ -887,7 +894,7 @@ Ref<BitmapFont> EditorFontImportPlugin::generate_font(const Ref<ResourceImportMe
 	if (src_path.extension().to_lower()=="fnt") {
 
 		if (ResourceLoader::load(src_path).is_valid()) {
-			EditorNode::get_singleton()->show_warning(TTR("Path: ")+src_path+"\nIs a Godot font file, please supply a BMFont type file instead.");
+			EditorNode::get_singleton()->show_warning(TTR("Path:")+" "+src_path+"\n"+TTR("This file is already a Godot font file, please supply a BMFont type file instead."));
 			return Ref<BitmapFont>();
 		}
 
@@ -895,7 +902,7 @@ Ref<BitmapFont> EditorFontImportPlugin::generate_font(const Ref<ResourceImportMe
 		font.instance();
 		Error err = font->create_from_fnt(src_path);
 		if (err) {
-			EditorNode::get_singleton()->show_warning(TTR("Path: ")+src_path+"\nFailed opening as BMFont file.");
+			EditorNode::get_singleton()->show_warning(TTR("Path:")+" "+src_path+"\n"+TTR("Failed opening as BMFont file."));
 			return Ref<BitmapFont>();
 		}
 
@@ -939,7 +946,7 @@ Ref<BitmapFont> EditorFontImportPlugin::generate_font(const Ref<ResourceImportMe
 
 	if ( error ) {
 		FT_Done_FreeType( library );
-		ERR_EXPLAIN(TTR("Invalid font size. "));
+		ERR_EXPLAIN(TTR("Invalid font size."));
 		ERR_FAIL_COND_V( error,Ref<BitmapFont>() );
 
 	}
@@ -986,7 +993,7 @@ Ref<BitmapFont> EditorFontImportPlugin::generate_font(const Ref<ResourceImportMe
 		if ( !fa ) {
 
 			FT_Done_FreeType( library );
-			ERR_EXPLAIN(TTR("Invalid font custom source. "));
+			ERR_EXPLAIN(TTR("Invalid font custom source."));
 			ERR_FAIL_COND_V( !fa,Ref<BitmapFont>() );
 
 		}
@@ -1607,7 +1614,7 @@ String EditorFontImportPlugin::get_name() const {
 }
 String EditorFontImportPlugin::get_visible_name() const{
 
-	return "Font";
+	return TTR("Font");
 }
 void EditorFontImportPlugin::import_dialog(const String& p_from){
 
@@ -1627,6 +1634,20 @@ Error EditorFontImportPlugin::import(const String& p_path, const Ref<ResourceImp
 
 	return ResourceSaver::save(p_path,font);
 
+}
+
+void EditorFontImportPlugin::import_from_drop(const Vector<String>& p_drop, const String &p_dest_path) {
+
+	for(int i=0;i<p_drop.size();i++) {
+		String ext = p_drop[i].extension().to_lower();
+		String file = p_drop[i].get_file();
+		if (ext=="ttf" || ext=="otf" || ext=="fnt") {
+
+			import_dialog();
+			dialog->set_source_and_dest(p_drop[i],p_dest_path.plus_file(file.basename()+".fnt"));
+			break;
+		}
+	}
 }
 
 

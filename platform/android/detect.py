@@ -21,7 +21,6 @@ def get_opts():
 
 	return [
 			('ANDROID_NDK_ROOT', 'the path to Android NDK', os.environ.get("ANDROID_NDK_ROOT", 0)),
-			('NDK_TOOLCHAIN', 'toolchain to use for the NDK',"arm-eabi-4.4.0"),
 			('NDK_TARGET', 'toolchain to use for the NDK',os.environ.get("NDK_TARGET", "arm-linux-androideabi-4.9")),
 			('NDK_TARGET_X86', 'toolchain to use for the NDK x86',os.environ.get("NDK_TARGET_X86", "x86-4.9")),
 			('ndk_platform', 'compile for platform: (android-<api> , example: android-15)',"android-15"),
@@ -169,11 +168,11 @@ def configure(env):
 
 	env['neon_enabled']=False
 	if env['android_arch']=='x86':
-		env['CCFLAGS'] = string.split('-DNO_STATVFS -MMD -MP -MF -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__GLIBC__  -Wno-psabi -ftree-vectorize -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
+		env['CCFLAGS'] = string.split('-DNO_STATVFS -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__GLIBC__  -Wno-psabi -ftree-vectorize -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
 	elif env["android_arch"]=="armv6":
-		env['CCFLAGS'] = string.split('-DNO_STATVFS -MMD -MP -MF -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__ARM_ARCH_6__ -D__GLIBC__  -Wno-psabi -march=armv6 -mfpu=vfp -mfloat-abi=softfp -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
+		env['CCFLAGS'] = string.split('-DNO_STATVFS -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__ARM_ARCH_6__ -D__GLIBC__  -Wno-psabi -march=armv6 -mfpu=vfp -mfloat-abi=softfp -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
 	elif env["android_arch"]=="armv7":
-		env['CCFLAGS'] = string.split('-DNO_STATVFS -MMD -MP -MF -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__ARM_ARCH_7__ -D__ARM_ARCH_7A__ -D__GLIBC__  -Wno-psabi -march=armv7-a -mfloat-abi=softfp -ftree-vectorize -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
+		env['CCFLAGS'] = string.split('-DNO_STATVFS -fpic -ffunction-sections -funwind-tables -fstack-protector -fvisibility=hidden -D__ARM_ARCH_7__ -D__ARM_ARCH_7A__ -D__GLIBC__  -Wno-psabi -march=armv7-a -mfloat-abi=softfp -ftree-vectorize -funsafe-math-optimizations -fno-strict-aliasing -DANDROID -Wa,--noexecstack -DGLES2_ENABLED')
 		if env['android_neon']=='yes':
 			env['neon_enabled']=True
 			env.Append(CCFLAGS=['-mfpu=neon','-D__ARM_NEON__'])

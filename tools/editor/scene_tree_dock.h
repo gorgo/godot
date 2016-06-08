@@ -64,6 +64,7 @@ class SceneTreeDock : public VBoxContainer {
 		TOOL_DUPLICATE,
 		TOOL_REPARENT,
 		TOOL_NEW_SCENE_FROM,
+		TOOL_MERGE_FROM_SCENE,
 		TOOL_MULTI_EDIT,
 		TOOL_ERASE,
 		TOOL_BUTTON_MAX
@@ -74,7 +75,9 @@ class SceneTreeDock : public VBoxContainer {
 	int current_option;
 	CreateDialog *create_dialog;
 
-	ToolButton *tool_buttons[TOOL_BUTTON_MAX];
+	ToolButton *button_add;
+	ToolButton *button_instance;
+
 	SceneTreeEditor *scene_tree;
 
 	HBoxContainer *tool_hbc;
@@ -83,8 +86,8 @@ class SceneTreeDock : public VBoxContainer {
 	EditorData *editor_data;
 	EditorSelection *editor_selection;
 
-	GroupsEditor *groups_editor;
-	ConnectionsDialog *connect_dialog;
+	//GroupsEditor *groups_editor;
+	//ConnectionsDialog *connect_dialog;
 	ScriptCreateDialog *script_create_dialog;
 	AcceptDialog *accept;
 	ConfirmationDialog *delete_dialog;
@@ -121,7 +124,7 @@ class SceneTreeDock : public VBoxContainer {
 	void _script_created(Ref<Script> p_script);
 
 	void _delete_confirm();
-	void _update_tool_buttons();
+
 
 	void _node_prerenamed(Node* p_node, const String& p_new_name);
 
@@ -162,6 +165,7 @@ public:
 	void fill_path_renames(Node* p_node, Node *p_new_parent, List<Pair<NodePath,NodePath> > *p_renames);
 	void perform_node_renames(Node* p_base,List<Pair<NodePath,NodePath> > *p_renames, Map<Ref<Animation>, Set<int> > *r_rem_anims=NULL);
 	SceneTreeEditor *get_tree_editor() { return scene_tree; }
+
 
 	SceneTreeDock(EditorNode *p_editor,Node *p_scene_root,EditorSelection *p_editor_selection,EditorData &p_editor_data);
 };

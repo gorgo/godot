@@ -221,7 +221,7 @@ public:
 
 	void popup_import(const String& p_path) {
 
-		popup_centered(Size2(400,400));
+		popup_centered(Size2(400,400)*EDSCALE);
 		if (p_path!="") {
 
 			Ref<ResourceImportMetadata> rimd = ResourceLoader::load_import_metadata(p_path);
@@ -252,7 +252,7 @@ public:
 
 		if (samples.size()==0) {
 			error_dialog->set_text(TTR("No samples to import!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 		}
 
 		if (save_path->get_text().strip_edges()=="") {
@@ -262,7 +262,7 @@ public:
 		}
 
 		if (!save_path->get_text().begins_with("res://")) {
-			error_dialog->set_text(TTR("Target path must be full resource path."));
+			error_dialog->set_text(TTR("Target path must be a complete resource path."));
 			error_dialog->popup_centered_minsize();
 			return;
 		}
@@ -293,7 +293,7 @@ public:
 			String dst = save_path->get_text();
 			if (dst=="") {
 				error_dialog->set_text(TTR("Save path is empty!"));
-				error_dialog->popup_centered(Size2(200,100));
+				error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			}
 
 			dst = dst.plus_file(samples[i].get_file().basename()+".smp");
@@ -823,6 +823,58 @@ void EditorSampleImportPlugin::_compress_ima_adpcm(const Vector<float>& p_data,D
 EditorSampleImportPlugin* EditorSampleImportPlugin::singleton=NULL;
 
 
+void EditorSampleImportPlugin::import_from_drop(const Vector<String>& p_drop, const String &p_dest_path) {
+
+
+	Vector<String> files;
+	for(int i=0;i<p_drop.size();i++) {
+		String ext = p_drop[i].extension().to_lower();
+
+		if (ext=="wav") {
+
+			files.push_back(p_drop[i]);
+		}
+	}
+
+	if (files.size()) {
+		import_dialog();
+		dialog->_choose_files(files);
+		dialog->_choose_save_dir(p_dest_path);
+	}
+}
+
+void EditorSampleImportPlugin::reimport_multiple_files(const Vector<String>& p_list) {
+
+	if (p_list.size()==0)
+		return;
+
+	Vector<String> sources;
+	for(int i=0;i<p_list.size();i++) {
+		int idx;
+		EditorFileSystemDirectory *efsd = EditorFileSystem::get_singleton()->find_file(p_list[i],&idx);
+		if (efsd) {
+			for(int j=0;j<efsd->get_source_count(idx);j++) {
+				String file = expand_source_path(efsd->get_source_file(idx,j));
+				if (sources.find(file)==-1) {
+					sources.push_back(file);
+				}
+
+			}
+		}
+	}
+
+	if (sources.size()) {
+
+		dialog->popup_import(p_list[0]);
+		dialog->_choose_files(sources);
+		dialog->_choose_save_dir(p_list[0].get_base_dir());
+	}
+}
+
+bool EditorSampleImportPlugin::can_reimport_multiple_files() const {
+
+	return true;
+}
 
 EditorSampleImportPlugin::EditorSampleImportPlugin(EditorNode* p_editor) {
 
@@ -865,8 +917,7 @@ Vector<uint8_t> EditorSampleExportPlugin::custom_export(String& p_path,const Ref
 }
 
 
+
 EditorSampleExportPlugin::EditorSampleExportPlugin() {
 
 }
-
-

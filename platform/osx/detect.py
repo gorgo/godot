@@ -28,10 +28,10 @@ def get_opts():
 def get_flags():
 
 	return [
-	('opengl', 'no'),
 	('legacygl', 'yes'),
 	('builtin_zlib', 'no'),
 	('freetype','builtin'), #use builtin freetype
+	('glew', 'yes'),
 	]
 
 
@@ -58,8 +58,8 @@ def configure(env):
 
 	if (env["freetype"]!="no"):
 		env.Append(CCFLAGS=['-DFREETYPE_ENABLED'])
-		env.Append(CPPPATH=['#tools/freetype'])
-		env.Append(CPPPATH=['#tools/freetype/freetype/include'])
+		env.Append(CPPPATH=['#drivers/freetype'])
+		env.Append(CPPPATH=['#drivers/freetype/freetype/include'])
 
 
 
@@ -68,9 +68,12 @@ def configure(env):
 		if (env["bits"]=="64"):
 		    env.Append(CCFLAGS=['-arch', 'x86_64'])
 		    env.Append(LINKFLAGS=['-arch', 'x86_64'])
-		else:
+		elif (env["bits"]=="32"):
 		    env.Append(CCFLAGS=['-arch', 'i386'])
 		    env.Append(LINKFLAGS=['-arch', 'i386'])
+		else:
+		    env.Append(CCFLAGS=['-arch', 'i386', '-arch', 'x86_64'])
+		    env.Append(LINKFLAGS=['-arch', 'i386', '-arch', 'x86_64'])
 	else:
 		#osxcross build
 		root=os.environ.get("OSXCROSS_ROOT",0)
@@ -91,11 +94,8 @@ def configure(env):
 #	env.Append(LIBPATH=['#platform/osx/lib'])
 
 
-	#if env['opengl'] == 'yes':
-	#	env.Append(CPPFLAGS=['-DOPENGL_ENABLED','-DGLEW_ENABLED'])
-
 	env.Append(CPPFLAGS=["-DAPPLE_STYLE_KEYS"])
-	env.Append(CPPFLAGS=['-DUNIX_ENABLED','-DGLES2_ENABLED','-DGLEW_ENABLED', '-DOSX_ENABLED'])
+	env.Append(CPPFLAGS=['-DUNIX_ENABLED','-DGLES2_ENABLED','-DOSX_ENABLED'])
 	env.Append(LIBS=['pthread'])
 	#env.Append(CPPFLAGS=['-F/Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks', '-isysroot', '/Developer/SDKs/MacOSX10.4u.sdk', '-mmacosx-version-min=10.4'])
 	#env.Append(LINKFLAGS=['-mmacosx-version-min=10.4', '-isysroot', '/Developer/SDKs/MacOSX10.4u.sdk', '-Wl,-syslibroot,/Developer/SDKs/MacOSX10.4u.sdk'])

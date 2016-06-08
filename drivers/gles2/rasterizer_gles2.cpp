@@ -4737,10 +4737,10 @@ void RasterizerGLES2::_update_shader( Shader* p_shader) const {
 }
 
 
-void RasterizerGLES2::_add_geometry( const Geometry* p_geometry, const InstanceData *p_instance, const Geometry *p_geometry_cmp, const GeometryOwner *p_owner) {
+void RasterizerGLES2::_add_geometry( const Geometry* p_geometry, const InstanceData *p_instance, const Geometry *p_geometry_cmp, const GeometryOwner *p_owner,int p_material) {
 
 	Material *m=NULL;
-	RID m_src=p_instance->material_override.is_valid() ? p_instance->material_override : p_geometry->material;
+	RID m_src=p_instance->material_override.is_valid() ? p_instance->material_override :(p_material>=0?p_instance->materials[p_material]:p_geometry->material);
 
 #ifdef DEBUG_ENABLED
 	if (current_debug==VS::SCENARIO_DEBUG_OVERDRAW) {
@@ -4988,8 +4988,9 @@ void RasterizerGLES2::add_mesh( const RID& p_mesh, const InstanceData *p_data) {
 
 	for (int i=0;i<ssize;i++) {
 
+		int mat_idx = p_data->materials[i].is_valid() ? i : -1;
 		Surface *s = mesh->surfaces[i];
-		_add_geometry(s,p_data,s,NULL);
+		_add_geometry(s,p_data,s,NULL,mat_idx);
 	}
 
 	mesh->last_pass=frame;
@@ -8437,7 +8438,7 @@ void RasterizerGLES2::canvas_draw_rect(const Rect2& p_rect, int p_flags, const R
 
 }
 
-void RasterizerGLES2::canvas_draw_style_box(const Rect2& p_rect, RID p_texture,const float *p_margin, bool p_draw_center,const Color& p_modulate) {
+void RasterizerGLES2::canvas_draw_style_box(const Rect2& p_rect, const Rect2& p_src_region, RID p_texture,const float *p_margin, bool p_draw_center,const Color& p_modulate) {
 
 	Color m = p_modulate;
 	m.a*=canvas_opacity;
@@ -8445,52 +8446,57 @@ void RasterizerGLES2::canvas_draw_style_box(const Rect2& p_rect, RID p_texture,c
 
 	Texture* texture=_bind_canvas_texture(p_texture);
 	ERR_FAIL_COND(!texture);
-	/* CORNERS */
 
+	Rect2 region = p_src_region;
+	if (region.size.width <= 0 )
+	    region.size.width = texture->width;
+	if (region.size.height <= 0)
+	    region.size.height = texture->height;
+	/* CORNERS */
 	_draw_textured_quad( // top left
 		Rect2( p_rect.pos, Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_TOP])),
-		Rect2( Point2(), Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_TOP])),
+		Rect2( region.pos, Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_TOP])),
 		Size2( texture->width, texture->height ) );
 
 	_draw_textured_quad( // top right
 		Rect2( Point2( p_rect.pos.x + p_rect.size.width - p_margin[MARGIN_RIGHT], p_rect.pos.y), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_TOP])),
-		Rect2( Point2(texture->width-p_margin[MARGIN_RIGHT],0), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_TOP])),
+		Rect2( Point2(region.pos.x+region.size.width-p_margin[MARGIN_RIGHT], region.pos.y), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_TOP])),
 		Size2( texture->width, texture->height ) );
 
 
 	_draw_textured_quad( // bottom left
 		Rect2( Point2(p_rect.pos.x,p_rect.pos.y + p_rect.size.height - p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_BOTTOM])),
-		Rect2( Point2(0,texture->height-p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_BOTTOM])),
+		Rect2( Point2(region.pos.x, region.pos.y+region.size.height-p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_LEFT],p_margin[MARGIN_BOTTOM])),
 		Size2( texture->width, texture->height ) );
 
 	_draw_textured_quad( // bottom right
 		Rect2( Point2( p_rect.pos.x + p_rect.size.width - p_margin[MARGIN_RIGHT], p_rect.pos.y + p_rect.size.height - p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_BOTTOM])),
-		Rect2( Point2(texture->width-p_margin[MARGIN_RIGHT],texture->height-p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_BOTTOM])),
+		Rect2( Point2(region.pos.x+region.size.width-p_margin[MARGIN_RIGHT], region.pos.y+region.size.height-p_margin[MARGIN_BOTTOM]), Size2(p_margin[MARGIN_RIGHT],p_margin[MARGIN_BOTTOM])),
 		Size2( texture->width, texture->height ) );
 
 	Rect2 rect_center( p_rect.pos+Point2( p_margin[MARGIN_LEFT], p_margin[MARGIN_TOP]), Size2( p_rect.size.width - p_margin[MARGIN_LEFT] - p_margin[MARGIN_RIGHT], p_rect.size.height - p_margin[MARGIN_TOP] - p_margin[MARGIN_BOTTOM] ));
 
-	Rect2 src_center( Point2( p_margin[MARGIN_LEFT], p_margin[MARGIN_TOP]), Size2( texture->width - p_margin[MARGIN_LEFT] - p_margin[MARGIN_RIGHT], texture->height - p_margin[MARGIN_TOP] - p_margin[MARGIN_BOTTOM] ));
+	Rect2 src_center( Point2(region.pos.x+p_margin[MARGIN_LEFT], region.pos.y+p_margin[MARGIN_TOP]), Size2(region.size.width - p_margin[MARGIN_LEFT] - p_margin[MARGIN_RIGHT], region.size.height - p_margin[MARGIN_TOP] - p_margin[MARGIN_BOTTOM] ));
 
 
 	_draw_textured_quad( // top
 		Rect2( Point2(rect_center.pos.x,p_rect.pos.y),Size2(rect_center.size.width,p_margin[MARGIN_TOP])),
-		Rect2( Point2(p_margin[MARGIN_LEFT],0), Size2(src_center.size.width,p_margin[MARGIN_TOP])),
+		Rect2( Point2(src_center.pos.x,region.pos.y), Size2(src_center.size.width,p_margin[MARGIN_TOP])),
 		Size2( texture->width, texture->height ) );
 
 	_draw_textured_quad( // bottom
 		Rect2( Point2(rect_center.pos.x,rect_center.pos.y+rect_center.size.height),Size2(rect_center.size.width,p_margin[MARGIN_BOTTOM])),
-		Rect2( Point2(p_margin[MARGIN_LEFT],src_center.pos.y+src_center.size.height), Size2(src_center.size.width,p_margin[MARGIN_BOTTOM])),
+		Rect2( Point2(src_center.pos.x,src_center.pos.y+src_center.size.height), Size2(src_center.size.width,p_margin[MARGIN_BOTTOM])),
 		Size2( texture->width, texture->height ) );
 
 	_draw_textured_quad( // left
 		Rect2( Point2(p_rect.pos.x,rect_center.pos.y),Size2(p_margin[MARGIN_LEFT],rect_center.size.height)),
-		Rect2( Point2(0,p_margin[MARGIN_TOP]), Size2(p_margin[MARGIN_LEFT],src_center.size.height)),
+		Rect2( Point2(region.pos.x,region.pos.y+p_margin[MARGIN_TOP]), Size2(p_margin[MARGIN_LEFT],src_center.size.height)),
 		Size2( texture->width, texture->height ) );
 
 	_draw_textured_quad( // right
 		Rect2( Point2(rect_center.pos.x+rect_center.size.width,rect_center.pos.y),Size2(p_margin[MARGIN_RIGHT],rect_center.size.height)),
-		Rect2( Point2(src_center.pos.x+src_center.size.width,p_margin[MARGIN_TOP]), Size2(p_margin[MARGIN_RIGHT],src_center.size.height)),
+		Rect2( Point2(src_center.pos.x+src_center.size.width,region.pos.y+p_margin[MARGIN_TOP]), Size2(p_margin[MARGIN_RIGHT],src_center.size.height)),
 		Size2( texture->width, texture->height ) );
 
 	if (p_draw_center) {
@@ -9183,7 +9189,7 @@ void RasterizerGLES2::_canvas_item_render_commands(CanvasItem *p_item,CanvasItem
 				CanvasItem::CommandStyle* style = static_cast<CanvasItem::CommandStyle*>(c);
 				if (use_normalmap)
 					_canvas_normal_set_flip(Vector2(1,1));
-				canvas_draw_style_box(style->rect,style->texture,style->margin,style->draw_center,style->color);
+				canvas_draw_style_box(style->rect,style->source,style->texture,style->margin,style->draw_center,style->color);
 
 			} break;
 			case CanvasItem::Command::TYPE_PRIMITIVE: {

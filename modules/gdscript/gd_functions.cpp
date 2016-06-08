@@ -1010,11 +1010,11 @@ void GDFunctions::call(Function p_func,const Variant **p_args,int p_arg_count,Va
 			VALIDATE_ARG_NUM(1);
 			VALIDATE_ARG_NUM(2);
 
-			Color color(*p_args[0],*p_args[1],*p_args[2]);
+			Color color((float)*p_args[0]/255.0f,(float)*p_args[1]/255.0f,(float)*p_args[2]/255.0f);
 
 			if (p_arg_count==4) {
 				VALIDATE_ARG_NUM(3);
-				color.a=*p_args[3];
+				color.a=(float)*p_args[3]/255.0f;
 			}
 
 			r_ret=color;
@@ -1226,12 +1226,12 @@ MethodInfo GDFunctions::get_info(Function p_func) {
 			return mi;
 		} break;
 		case MATH_ISNAN: {
-			MethodInfo mi("isnan",PropertyInfo(Variant::REAL,"s"));
+			MethodInfo mi("is_nan",PropertyInfo(Variant::REAL,"s"));
 			mi.return_val.type=Variant::REAL;
 			return mi;
 		} break;
 		case MATH_ISINF: {
-			MethodInfo mi("isinf",PropertyInfo(Variant::REAL,"s"));
+			MethodInfo mi("is_inf",PropertyInfo(Variant::REAL,"s"));
 			mi.return_val.type=Variant::REAL;
 			return mi;
 		} break;

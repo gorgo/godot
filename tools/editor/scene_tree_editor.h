@@ -49,6 +49,9 @@ class SceneTreeEditor : public Control {
 		BUTTON_SCRIPT=2,
 		BUTTON_LOCK=3,
 		BUTTON_GROUP=4,
+		BUTTON_WARNING=5,
+		BUTTON_SIGNALS=6,
+		BUTTON_GROUPS=7,
 	};
 
 	enum {
@@ -69,6 +72,7 @@ class SceneTreeEditor : public Control {
 	String filter;
 
 	AcceptDialog *error;
+	AcceptDialog *warning;
 	ConfirmationDialog *clear_inherit_confirm;
 
 	int blocked;
@@ -123,6 +127,10 @@ class SceneTreeEditor : public Control {
 	void drop_data_fw(const Point2& p_point,const Variant& p_data,Control* p_from);
 
 	void _rmb_select(const Vector2& p_pos);
+
+	void _warning_changed(Node* p_for_node);
+
+	Timer* update_timer;
 
 public:
 

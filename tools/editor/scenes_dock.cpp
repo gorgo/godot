@@ -190,8 +190,6 @@ void ScenesDock::_notification(int p_what) {
 
 			button_reload->set_icon( get_icon("Reload","EditorIcons"));
 			button_favorite->set_icon( get_icon("Favorites","EditorIcons"));
-			button_fav_up->set_icon( get_icon("MoveUp","EditorIcons"));
-			button_fav_down->set_icon( get_icon("MoveDown","EditorIcons"));
 			//button_instance->set_icon( get_icon("Add","EditorIcons"));
 			//button_open->set_icon( get_icon("Folder","EditorIcons"));
 			button_back->set_icon( get_icon("Filesystem","EditorIcons"));
@@ -201,7 +199,7 @@ void ScenesDock::_notification(int p_what) {
 			files->connect("item_activated",this,"_select_file");
 			button_hist_next->connect("pressed",this,"_fw_history");
 			button_hist_prev->connect("pressed",this,"_bw_history");
-			search_button->set_icon( get_icon("Zoom","EditorIcons"));
+			search_icon->set_texture( get_icon("Zoom","EditorIcons"));
 
 			button_hist_next->set_icon( get_icon("Forward","EditorIcons"));
 			button_hist_prev->set_icon( get_icon("Back","EditorIcons"));
@@ -228,10 +226,16 @@ void ScenesDock::_notification(int p_what) {
 		case NOTIFICATION_DRAG_BEGIN: {
 
 			Dictionary dd = get_viewport()->gui_get_drag_data();
-			if (tree->is_visible() && dd.has("type") && (
-						(String(dd["type"])=="files") || (String(dd["type"])=="files_and_dirs") || (String(dd["type"])=="resource"))) {
-				tree->set_drop_mode_flags(Tree::DROP_MODE_ON_ITEM);
+			if (tree->is_visible() && dd.has("type") ) {
+				if  ( (String(dd["type"])=="files") || (String(dd["type"])=="files_and_dirs") || (String(dd["type"])=="resource")) {
+					tree->set_drop_mode_flags(Tree::DROP_MODE_ON_ITEM);
+				}
+				if  ( (String(dd["type"])=="favorite") ) {
+					tree->set_drop_mode_flags(Tree::DROP_MODE_INBETWEEN);
+				}
 			}
+
+
 		} break;
 		case NOTIFICATION_DRAG_END: {
 
@@ -272,11 +276,7 @@ void ScenesDock::_dir_selected() {
 	if (ti->get_parent() && ti->get_parent()->get_parent()==tree->get_root() && !ti->get_parent()->get_prev()) {
 
 		//a favorite!!!
-		button_fav_up->set_disabled(!ti->get_prev());
-		button_fav_down->set_disabled(!ti->get_next());
 	} else {
-		button_fav_up->set_disabled(true);
-		button_fav_down->set_disabled(true);
 
 
 	}
@@ -287,83 +287,6 @@ void ScenesDock::_dir_selected() {
 
 }
 
-void ScenesDock::_fav_up_pressed() {
-
-	TreeItem *sel = tree->get_selected();
-	if (!sel)
-		return ;
-
-	if (!sel->get_prev())
-		return;
-
-	String sw = sel->get_prev()->get_metadata(0);
-	String txt = sel->get_metadata(0);
-
-	Vector<String> favorited = EditorSettings::get_singleton()->get_favorite_dirs();
-
-	int a_idx=favorited.find(sw);
-	int b_idx=favorited.find(txt);
-
-	if (a_idx==-1 || b_idx==-1)
-		return;
-	SWAP(favorited[a_idx],favorited[b_idx]);
-
-	EditorSettings::get_singleton()->set_favorite_dirs(favorited);
-
-	_update_tree();
-
-	if (!tree->get_root() || !tree->get_root()->get_children() || !tree->get_root()->get_children()->get_children())
-		return;
-	sel = tree->get_root()->get_children()->get_children();
-	while(sel) {
-
-		String t = sel->get_metadata(0);
-		if (t==txt) {
-			sel->select(0);
-			return;
-		}
-		sel=sel->get_next();
-	}
-}
-
-void ScenesDock::_fav_down_pressed() {
-
-	TreeItem *sel = tree->get_selected();
-	if (!sel)
-		return ;
-
-	if (!sel->get_next())
-		return;
-
-	String sw = sel->get_next()->get_metadata(0);
-	String txt = sel->get_metadata(0);
-
-	Vector<String> favorited = EditorSettings::get_singleton()->get_favorite_dirs();
-
-	int a_idx=favorited.find(sw);
-	int b_idx=favorited.find(txt);
-
-	if (a_idx==-1 || b_idx==-1)
-		return;
-	SWAP(favorited[a_idx],favorited[b_idx]);
-
-	EditorSettings::get_singleton()->set_favorite_dirs(favorited);
-
-	_update_tree();
-
-	if (!tree->get_root() || !tree->get_root()->get_children() || !tree->get_root()->get_children()->get_children())
-		return;
-	sel = tree->get_root()->get_children()->get_children();
-	while(sel) {
-
-		String t = sel->get_metadata(0);
-		if (t==txt) {
-			sel->select(0);
-			return;
-		}
-		sel=sel->get_next();
-	}
-}
 
 void ScenesDock::_favorites_pressed() {
 
@@ -403,6 +326,10 @@ String ScenesDock::get_selected_path() const {
 	return "res://"+path;
 }
 
+String ScenesDock::get_current_path() const {
+
+	return path;
+}
 
 void ScenesDock::_thumbnail_done(const String& p_path,const Ref<Texture>& p_preview, const Variant& p_udata) {
 
@@ -465,6 +392,25 @@ void ScenesDock::_search(EditorFileSystemDirectory *p_path,List<FileInfo>* match
 			fi.name=file;
 			fi.type=p_path->get_file_type(i);
 			fi.path=p_path->get_file_path(i);
+			if (p_path->get_file_meta(i)) {
+				if (p_path->is_missing_sources(i)) {
+					fi.import_status=3;
+				} else if (p_path->have_sources_changed(i)) {
+					fi.import_status=2;
+				} else {
+					fi.import_status=1;
+				}
+			} else {
+				fi.import_status=0;
+			}
+			for(int j=0;j<p_path->get_source_count(i);j++) {
+				String s = EditorImportPlugin::expand_source_path(p_path->get_source_file(i,j));
+				if (p_path->is_source_file_missing(i,j)) {
+					s+=" (Missing)";
+				}
+				fi.sources.push_back(s);
+			}
+
 			matches->push_back(fi);
 			if (matches->size()>p_max_items)
 				return;
@@ -495,11 +441,12 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 		return;
 
 	int thumbnail_size = EditorSettings::get_singleton()->get("file_dialog/thumbnail_size");
+	thumbnail_size*=EDSCALE;
 	Ref<Texture> folder_thumbnail;
 	Ref<Texture> file_thumbnail;
 
 	bool use_thumbnails=!display_mode->is_pressed();
-	bool use_folders = !search_box->is_visible() && split_mode;
+	bool use_folders = search_box->get_text().length()==0 && split_mode;
 
 	if (use_thumbnails) { //thumbnails
 
@@ -508,6 +455,7 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 		files->set_fixed_column_width(thumbnail_size*3/2);
 		files->set_max_text_lines(2);
 		files->set_min_icon_size(Size2(thumbnail_size,thumbnail_size));
+		files->set_max_icon_size(Size2(thumbnail_size,thumbnail_size));
 
 		if (!has_icon("ResizedFolder","EditorIcons")) {
 			Ref<ImageTexture> folder = get_icon("FolderBig","EditorIcons");
@@ -579,7 +527,7 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 
 	List<FileInfo> filelist;
 
-	if (search_box->is_visible()) {
+	if (search_box->get_text().length()) {
 
 		if (search_box->get_text().length()>1) {
 			_search(EditorFileSystem::get_singleton()->get_filesystem(),&filelist,128);
@@ -594,6 +542,27 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 			fi.name=efd->get_file(i);
 			fi.path=path.plus_file(fi.name);
 			fi.type=efd->get_file_type(i);
+			if (efd->get_file_meta(i)) {
+				if (efd->is_missing_sources(i)) {
+					fi.import_status=3;
+				} else if (efd->have_sources_changed(i)) {
+					fi.import_status=2;
+				} else {
+					fi.import_status=1;
+				}
+
+				for(int j=0;j<efd->get_source_count(i);j++) {
+					String s = EditorImportPlugin::expand_source_path(efd->get_source_file(i,j));
+					if (efd->is_source_file_missing(i,j)) {
+						s+=" (Missing)";
+					}
+					fi.sources.push_back(s);
+				}
+			} else {
+				fi.import_status=0;
+			}
+
+
 
 			filelist.push_back(fi);
 		}
@@ -610,11 +579,32 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 
 		Ref<Texture> type_icon;
 
-		if (has_icon(type,ei)) {
-			type_icon=get_icon(type,ei);
-		} else {
-			type_icon=get_icon(oi,ei);
+		String tooltip=fname;
+
+		if (E->get().import_status==0) {
+
+			if (has_icon(type,ei)) {
+				type_icon=get_icon(type,ei);
+			} else {
+				type_icon=get_icon(oi,ei);
+			}
+		} else if (E->get().import_status==1) {
+			type_icon=get_icon("DependencyOk","EditorIcons");
+		} else if (E->get().import_status==2) {
+			type_icon=get_icon("DependencyChanged","EditorIcons");
+			tooltip+"\nStatus: Needs Re-Import";
+		} else if (E->get().import_status==3) {
+			type_icon=get_icon("ImportFail","EditorIcons");
+			tooltip+"\nStatus: Missing Dependencies";
 		}
+
+		if (E->get().sources.size()) {
+			for(int i=0;i<E->get().sources.size();i++) {
+				tooltip+="\nSource: "+E->get().sources[i];
+			}
+		}
+
+
 
 		if (use_thumbnails) {
 			files->add_item(fname,file_thumbnail,true);
@@ -633,6 +623,9 @@ void ScenesDock::_update_files(bool p_keep_selection) {
 
 		if (cselection.has(fname))
 			files->select(files->get_item_count()-1,false);
+
+		files->set_item_tooltip(files->get_item_count()-1,tooltip);
+
 
 	}
 
@@ -653,8 +646,6 @@ void ScenesDock::_go_to_tree() {
 	tree->grab_focus();
 	tree->ensure_cursor_is_visible();
 	button_favorite->show();
-	button_fav_up->show();
-	button_fav_down->show();
 	//button_open->hide();
 	//file_options->hide();
 }
@@ -680,8 +671,6 @@ void ScenesDock::_fs_changed() {
 
 	if (!tree->is_hidden()) {
 		button_favorite->show();
-		button_fav_up->show();
-		button_fav_down->show();
 		_update_tree();
 
 	}
@@ -859,7 +848,7 @@ void ScenesDock::_move_operation(const String& p_to_path) {
 
 	for(int i=0;i<move_dirs.size();i++) {
 		if (p_to_path.begins_with(move_dirs[i])) {
-			EditorNode::get_singleton()->show_warning(TTR("Can't move directories to within themselves"));
+			EditorNode::get_singleton()->show_warning(TTR("Can't move directories to within themselves."));
 			return;
 		}
 
@@ -944,6 +933,7 @@ void ScenesDock::_file_option(int p_option) {
 	switch(p_option) {
 
 
+		case FILE_SHOW_IN_EXPLORER:
 		case FILE_OPEN: {
 			int idx=-1;
 			for(int i=0;i<files->get_item_count();i++) {
@@ -959,6 +949,12 @@ void ScenesDock::_file_option(int p_option) {
 
 
 			String path = files->get_item_metadata(idx);
+			if (p_option == FILE_SHOW_IN_EXPLORER) {
+				String dir = Globals::get_singleton()->globalize_path(path);
+				dir = dir.substr(0, dir.find_last("/"));
+				OS::get_singleton()->shell_open(String("file://")+dir);
+				return;
+			}
 
 			if (path.ends_with("/")) {
 				if (path!="res://") {
@@ -1036,7 +1032,7 @@ void ScenesDock::_file_option(int p_option) {
 				rename_dialog->set_mode(EditorFileDialog::MODE_SAVE_FILE);
 				rename_dialog->set_current_path(move_files[0]);
 				rename_dialog->popup_centered_ratio();
-				rename_dialog->set_title(TTR("Pick New Name and Location For: ")+move_files[0].get_file());
+				rename_dialog->set_title(TTR("Pick New Name and Location For:")+" "+move_files[0].get_file());
 
 
 			} else {
@@ -1071,7 +1067,47 @@ void ScenesDock::_file_option(int p_option) {
 		case FILE_INFO: {
 
 		} break;
+		case FILE_REIMPORT: {
 
+
+			Vector<String> reimport;
+			for(int i=0;i<files->get_item_count();i++) {
+
+				if (!files->is_selected(i))
+					continue;
+
+				String path = files->get_item_metadata(i);
+				reimport.push_back(path);
+			}
+
+			ERR_FAIL_COND(reimport.size()==0);
+
+			Ref<ResourceImportMetadata> rimd = ResourceLoader::load_import_metadata(reimport[0]);
+			ERR_FAIL_COND(!rimd.is_valid());
+			String editor=rimd->get_editor();
+
+			if (editor.begins_with("texture_")) { //compatibility fix for old texture format
+				editor="texture";
+			}
+
+			Ref<EditorImportPlugin> rimp = EditorImportExport::get_singleton()->get_import_plugin_by_name(editor);
+			ERR_FAIL_COND(!rimp.is_valid());
+
+			if (reimport.size()==1) {
+				rimp->import_dialog(reimport[0]);
+			} else {
+				rimp->reimport_multiple_files(reimport);
+
+			}
+
+		} break;
+		case FILE_COPY_PATH:
+
+			int idx = files->get_current();
+			if (idx<0 || idx>=files->get_item_count())
+				break;
+			String path = files->get_item_metadata(idx);
+			OS::get_singleton()->set_clipboard(path);
 	}
 }
 
@@ -1093,8 +1129,6 @@ void ScenesDock::_open_pressed(){
 		tree->hide();
 		file_list_vb->show();
 		button_favorite->hide();
-		button_fav_up->hide();
-		button_fav_down->hide();
 	}
 
 	//file_options->show();
@@ -1107,26 +1141,6 @@ void ScenesDock::_open_pressed(){
 
 }
 
-void ScenesDock::_search_toggled(){
-
-	if (search_button->is_pressed()) {
-		//search_box->clear();
-		search_box->select_all();
-		search_box->show();
-		current_path->hide();
-		search_box->grab_focus();
-
-		_update_files(false);
-	} else {
-
-		//search_box->clear();
-		search_box->hide();
-		current_path->show();
-
-		_update_files(false);
-
-	}
-}
 
 void ScenesDock::_search_changed(const String& p_text) {
 
@@ -1173,7 +1187,14 @@ Variant ScenesDock::get_drag_data_fw(const Point2& p_point,Control* p_from) {
 			path=path+"/";
 		Vector<String> paths;
 		paths.push_back(path);
-		return EditorNode::get_singleton()->drag_files(paths,p_from);
+		Dictionary d = EditorNode::get_singleton()->drag_files(paths,p_from);
+
+		if (selected->get_parent() && tree->get_root()->get_children()==selected->get_parent()) {
+			//a favorite.. treat as such
+			d["type"]="favorite";
+		}
+
+		return d;
 
 	}
 
@@ -1232,6 +1253,30 @@ bool ScenesDock::can_drop_data_fw(const Point2& p_point,const Variant& p_data,Co
 
 	Dictionary drag_data = p_data;
 
+	if (drag_data.has("type") && String(drag_data["type"])=="favorite") {
+
+		//moving favorite around
+		TreeItem *ti = tree->get_item_at_pos(p_point);
+		if (!ti)
+			return false;
+
+		int what = tree->get_drop_section_at_pos(p_point);
+
+		if (ti==tree->get_root()->get_children()) {
+			return (what==1); //the parent, first fav
+		}
+		if (ti->get_parent() && tree->get_root()->get_children()==ti->get_parent()) {
+			return true; // a favorite
+		}
+
+		if (ti==tree->get_root()->get_children()->get_next()) {
+			return (what==-1); //the tree, last fav
+		}
+
+		return false;
+
+	}
+
 
 	if (drag_data.has("type") && String(drag_data["type"])=="resource") {
 		return true;
@@ -1275,6 +1320,69 @@ void ScenesDock::drop_data_fw(const Point2& p_point,const Variant& p_data,Contro
 	if (!can_drop_data_fw(p_point,p_data,p_from))
 		return;
 	Dictionary drag_data = p_data;
+
+	if (drag_data.has("type") && String(drag_data["type"])=="favorite") {
+
+		//moving favorite around
+		TreeItem *ti = tree->get_item_at_pos(p_point);
+		if (!ti)
+			return;
+
+		Vector<String> files = drag_data["files"];
+
+		ERR_FAIL_COND(files.size()!=1);
+
+		String swap = files[0];
+		if (swap!="res://" && swap.ends_with("/")) {
+			swap=swap.substr(0,swap.length()-1);
+		}
+
+		int what = tree->get_drop_section_at_pos(p_point);
+
+		TreeItem *swap_item=NULL;
+
+		if (ti==tree->get_root()->get_children()) {
+			swap_item=tree->get_root()->get_children()->get_children();
+
+		} else if (ti->get_parent() && tree->get_root()->get_children()==ti->get_parent()) {
+			if (what==-1) {
+				swap_item=ti;
+			} else {
+				swap_item=ti->get_next();
+			}
+		}
+
+		String swap_with;
+
+		if (swap_item) {
+			swap_with=swap_item->get_metadata(0);
+			if (swap_with!="res://" && swap_with.ends_with("/")) {
+				swap_with=swap_with.substr(0,swap_with.length()-1);
+			}
+		}
+
+		if (swap==swap_with)
+			return;
+
+		Vector<String> dirs = EditorSettings::get_singleton()->get_favorite_dirs();
+
+		ERR_FAIL_COND(dirs.find(swap)==-1);
+		ERR_FAIL_COND(swap_with!=String() && dirs.find(swap_with)==-1);
+
+		dirs.erase(swap);
+
+		if (swap_with==String()) {
+			dirs.push_back(swap);
+		} else {
+			int idx = dirs.find(swap_with);
+			dirs.insert(idx,swap);
+		}
+
+		EditorSettings::get_singleton()->set_favorite_dirs(dirs);
+		_update_tree();
+		return;
+
+	}
 
 	if (drag_data.has("type") && String(drag_data["type"])=="resource") {
 		Ref<Resource> res = drag_data["resource"];
@@ -1328,7 +1436,7 @@ void ScenesDock::drop_data_fw(const Point2& p_point,const Variant& p_data,Contro
 
 				int at_pos = files->get_item_at_pos(p_point);
 				ERR_FAIL_COND(at_pos==-1);
-				String to_dir = files->get_item_metadata(at_pos);
+				to_dir = files->get_item_metadata(at_pos);
 			}  else {
 				TreeItem *ti = tree->get_item_at_pos(p_point);
 				if (!ti)
@@ -1364,6 +1472,8 @@ void ScenesDock::_files_list_rmb_select(int p_item,const Vector2& p_pos) {
 	Vector<String> filenames;
 
 	bool all_scenes=true;
+	bool all_can_reimport=true;
+	Set<String> types;
 
 	for(int i=0;i<files->get_item_count();i++) {
 
@@ -1382,6 +1492,38 @@ void ScenesDock::_files_list_rmb_select(int p_item,const Vector2& p_pos) {
 			return;
 		}
 
+
+		EditorFileSystemDirectory *efsd=NULL;
+		int pos;
+
+		efsd = EditorFileSystem::get_singleton()->find_file(path,&pos);
+
+		if (efsd) {
+
+
+			if (!efsd->get_file_meta(pos)) {
+				all_can_reimport=false;
+
+
+			} else {
+				Ref<ResourceImportMetadata> rimd = ResourceLoader::load_import_metadata(path);
+				if (rimd.is_valid()) {
+
+					String editor=rimd->get_editor();
+					if (editor.begins_with("texture_")) { //compatibility fix for old texture format
+						editor="texture";
+					}
+					types.insert(editor);
+
+				} else {
+					all_can_reimport=false;
+
+				}
+			}
+		} else {
+			all_can_reimport=false;
+
+		}
 
 		filenames.push_back(path);
 		if (EditorFileSystem::get_singleton()->get_file_type(path)!="PackedScene")
@@ -1409,13 +1551,40 @@ void ScenesDock::_files_list_rmb_select(int p_item,const Vector2& p_pos) {
 	}
 
 	if (filenames.size()==1) {
+		file_options->add_item(TTR("Copy Path"), FILE_COPY_PATH);
 		file_options->add_item(TTR("Rename or Move.."),FILE_MOVE);
 	} else {
 		file_options->add_item(TTR("Move To.."),FILE_MOVE);
 	}
 
+
 	file_options->add_item(TTR("Delete"),FILE_REMOVE);
+
 	//file_options->add_item(TTR("Info"),FILE_INFO);
+
+	file_options->add_separator();
+	file_options->add_item(TTR("Show In File Manager"),FILE_SHOW_IN_EXPLORER);
+
+	if (all_can_reimport && types.size()==1) { //all can reimport and are of the same type
+
+
+		bool valid=true;
+		Ref<EditorImportPlugin> rimp = EditorImportExport::get_singleton()->get_import_plugin_by_name(types.front()->get());
+		if (rimp.is_valid()) {
+
+			if (filenames.size()>1 && !rimp->can_reimport_multiple_files())	{
+				valid=false;
+			}
+		} else {
+			valid=false;
+		}
+
+		if (valid) {
+			file_options->add_separator();
+			file_options->add_item(TTR("Re-Import.."),FILE_REIMPORT);
+		}
+	}
+
 	file_options->set_pos(files->get_global_pos() + p_pos);
 	file_options->popup();
 
@@ -1438,12 +1607,10 @@ void ScenesDock::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("_bw_history"), &ScenesDock::_bw_history);
 	ObjectTypeDB::bind_method(_MD("_fs_changed"), &ScenesDock::_fs_changed);
 	ObjectTypeDB::bind_method(_MD("_dir_selected"), &ScenesDock::_dir_selected);
-	ObjectTypeDB::bind_method(_MD("_fav_up_pressed"), &ScenesDock::_fav_up_pressed);
-	ObjectTypeDB::bind_method(_MD("_fav_down_pressed"), &ScenesDock::_fav_down_pressed);
 	ObjectTypeDB::bind_method(_MD("_file_option"), &ScenesDock::_file_option);
 	ObjectTypeDB::bind_method(_MD("_move_operation"), &ScenesDock::_move_operation);
 	ObjectTypeDB::bind_method(_MD("_rename_operation"), &ScenesDock::_rename_operation);
-	ObjectTypeDB::bind_method(_MD("_search_toggled"), &ScenesDock::_search_toggled);
+
 	ObjectTypeDB::bind_method(_MD("_search_changed"), &ScenesDock::_search_changed);
 
 	ObjectTypeDB::bind_method(_MD("get_drag_data_fw"), &ScenesDock::get_drag_data_fw);
@@ -1476,28 +1643,21 @@ ScenesDock::ScenesDock(EditorNode *p_editor) {
 	button_hist_next->set_focus_mode(FOCUS_NONE);
 	button_hist_next->set_tooltip(TTR("Next Directory"));
 
+	current_path=memnew( LineEdit );
+	current_path->set_h_size_flags(SIZE_EXPAND_FILL);
+	toolbar_hbc->add_child(current_path);
+
+
 	button_reload = memnew( Button );
 	button_reload->set_flat(true);
 	button_reload->connect("pressed",this,"_rescan");
 	toolbar_hbc->add_child(button_reload);
 	button_reload->set_focus_mode(FOCUS_NONE);
 	button_reload->set_tooltip(TTR("Re-Scan Filesystem"));
+	button_reload->hide();
 
-	toolbar_hbc->add_spacer();
+	//toolbar_hbc->add_spacer();
 
-	button_fav_up = memnew( ToolButton );
-	button_fav_up->set_flat(true);
-	toolbar_hbc->add_child(button_fav_up);
-	button_fav_up->set_disabled(true);
-	button_fav_up->connect("pressed",this,"_fav_up_pressed");
-	button_fav_up->set_tooltip(TTR("Move Favorite Up"));
-
-	button_fav_down = memnew( ToolButton );
-	button_fav_down->set_flat(true);
-	toolbar_hbc->add_child(button_fav_down);
-	button_fav_down->set_disabled(true);
-	button_fav_down->connect("pressed",this,"_fav_down_pressed");
-	button_fav_down->set_tooltip(TTR("Move Favorite Down"));
 
 	button_favorite = memnew( Button );
 	button_favorite->set_flat(true);
@@ -1507,8 +1667,10 @@ ScenesDock::ScenesDock(EditorNode *p_editor) {
 	button_favorite->set_tooltip(TTR("Toggle folder status as Favorite"));
 
 	button_favorite->set_focus_mode(FOCUS_NONE);
-	button_fav_up->set_focus_mode(FOCUS_NONE);
-	button_fav_down->set_focus_mode(FOCUS_NONE);
+
+	Control *spacer = memnew( Control);
+
+
 
 /*
 	button_open = memnew( Button );
@@ -1540,7 +1702,7 @@ ScenesDock::ScenesDock(EditorNode *p_editor) {
 
 	tree->set_hide_root(true);
 	split_box->add_child(tree);
-	tree->set_custom_minimum_size(Size2(0,200));
+	tree->set_custom_minimum_size(Size2(0,200)*EDSCALE);
 	tree->set_drag_forwarding(this);
 
 
@@ -1566,20 +1728,15 @@ ScenesDock::ScenesDock(EditorNode *p_editor) {
 	button_back  = memnew( ToolButton );
 	path_hb->add_child(button_back);
 	button_back->hide();
-	current_path=memnew( LineEdit );
-	current_path->set_h_size_flags(SIZE_EXPAND_FILL);
-	path_hb->add_child(current_path);
 
 	search_box = memnew( LineEdit );
 	search_box->set_h_size_flags(SIZE_EXPAND_FILL);
 	path_hb->add_child(search_box);
-	search_box->hide();
 	search_box->connect("text_changed",this,"_search_changed");
 
-	search_button = memnew( ToolButton );
-	path_hb->add_child(search_button);
-	search_button->set_toggle_mode(true	);
-	search_button->connect("pressed",this,"_search_toggled");
+	search_icon = memnew( TextureFrame );
+	search_icon->set_stretch_mode(TextureFrame::STRETCH_KEEP_CENTERED);
+	path_hb->add_child(search_icon);
 
 	display_mode = memnew( ToolButton );
 	path_hb->add_child(display_mode);
@@ -1630,9 +1787,9 @@ ScenesDock::ScenesDock(EditorNode *p_editor) {
 	path="res://";
 
 
+	add_constant_override("separation",3);
 }
 
 ScenesDock::~ScenesDock() {
 
 }
-

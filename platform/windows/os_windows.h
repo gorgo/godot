@@ -103,7 +103,7 @@ class OS_Windows : public OS {
 	HDC		hDC;	// Private GDI Device Context
 	HINSTANCE	hInstance;		// Holds The Instance Of The Application
 	HWND hWnd;
-	
+
 	HCURSOR hCursor;
 
 	Size2 window_rect;
@@ -172,6 +172,7 @@ protected:
 		HMONITOR hMonitor;
 		HDC hdcMonitor;
 		Rect2 rect;
+		int dpi;
 
 
 	};
@@ -213,6 +214,8 @@ public:
 	virtual void set_current_screen(int p_screen);
 	virtual Point2 get_screen_position(int p_screen=0) const;
 	virtual Size2 get_screen_size(int p_screen=0) const;
+	virtual int get_screen_dpi(int p_screen=0) const;
+
 	virtual Point2 get_window_position() const;
 	virtual void set_window_position(const Point2& p_position);
 	virtual Size2 get_window_size() const;
@@ -279,6 +282,9 @@ public:
 
 	virtual bool is_joy_known(int p_device);
 	virtual String get_joy_guid(int p_device) const;
+
+	virtual void set_use_vsync(bool p_enable);
+	virtual bool is_vsnc_enabled() const;
 
 	OS_Windows(HINSTANCE _hInstance);
 	~OS_Windows();

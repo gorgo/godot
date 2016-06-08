@@ -70,6 +70,17 @@ typedef struct {
 class OS_X11 : public OS_Unix {
 
 	Atom wm_delete;
+	Atom xdnd_enter;
+	Atom xdnd_position;
+	Atom xdnd_status;
+	Atom xdnd_action_copy;
+	Atom xdnd_drop;
+	Atom xdnd_finished;
+	Atom xdnd_selection;
+	Atom requested;
+
+	int  xdnd_version;
+
 #if defined(OPENGL_ENABLED) || defined(LEGACYGL_ENABLED)
 	ContextGL_X11 *context_gl;
 #endif
@@ -78,6 +89,7 @@ class OS_X11 : public OS_Unix {
 	VideoMode current_videomode;
 	List<String> args;
 	Window x11_window;
+	Window xdnd_source_window;
 	MainLoop *main_loop;
 	::Display* x11_display;
 	char *xmbstring;
@@ -227,6 +239,9 @@ public:
 	virtual String get_joy_guid(int p_device) const;
 
 	virtual void set_context(int p_context);
+
+	virtual void set_use_vsync(bool p_enable);
+	virtual bool is_vsnc_enabled() const;
 
 	void run();
 

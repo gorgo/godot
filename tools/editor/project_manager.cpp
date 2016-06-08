@@ -45,8 +45,9 @@
 #include "io/resource_saver.h"
 
 #include "editor_icons.h"
+#include "editor_fonts.h"
 
-
+#include "editor_scale.h"
 
 class NewProjectDialog : public ConfirmationDialog {
 
@@ -66,7 +67,7 @@ class NewProjectDialog : public ConfirmationDialog {
 		get_ok()->set_disabled(true);
 		DirAccess *d = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 		if (project_path->get_text() != "" && d->change_dir(project_path->get_text())!=OK) {
-			error->set_text(TTR("Invalid Path for Project, Path Must Exist!"));
+			error->set_text(TTR("Invalid project path, the path must exist!"));
 			memdelete(d);
 			return false;
 		}
@@ -75,7 +76,7 @@ class NewProjectDialog : public ConfirmationDialog {
 
 			if (d->file_exists("engine.cfg")) {
 
-				error->set_text(TTR("Invalid Project Path (engine.cfg must not exist)."));
+				error->set_text(TTR("Invalid project path, engine.cfg must not exist."));
 				memdelete(d);
 				return false;
 			}
@@ -84,7 +85,7 @@ class NewProjectDialog : public ConfirmationDialog {
 
 			if (project_path->get_text() != "" && !d->file_exists("engine.cfg")) {
 
-				error->set_text(TTR("Invalid Project Path (engine.cfg must exist)."));
+				error->set_text(TTR("Invalid project path, engine.cfg must exist."));
 				memdelete(d);
 				return false;
 			}
@@ -170,7 +171,7 @@ class NewProjectDialog : public ConfirmationDialog {
 			DirAccess *d = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 
 			if (d->change_dir(project_path->get_text())!=OK) {
-				error->set_text(TTR("Invalid Path for Project (changed anything?)"));
+				error->set_text(TTR("Invalid project path (changed anything?)."));
 				memdelete(d);
 				return;
 			}
@@ -180,7 +181,7 @@ class NewProjectDialog : public ConfirmationDialog {
 
 			FileAccess *f = FileAccess::open(dir.plus_file("/engine.cfg"),FileAccess::WRITE);
 			if (!f) {
-				error->set_text(TTR("Couldn't create engine.cfg in project path"));
+				error->set_text(TTR("Couldn't create engine.cfg in project path."));
 			} else {
 
 				f->store_line("; Engine configuration file.");
@@ -247,7 +248,7 @@ public:
 		if (import_mode) {
 			set_title(TTR("Import Existing Project"));
 			get_ok()->set_text(TTR("Import"));
-			pp->set_text(TTR("Project Path: (Must exist)"));
+			pp->set_text(TTR("Project Path (Must Exist):"));
 			pn->set_text(TTR("Project Name:"));
 			pn->hide();
 			project_name->hide();
@@ -788,7 +789,7 @@ void ProjectManager::_erase_project()  {
 		return;
 
 
-	erase_ask->set_text(TTR("Remove project from list?? (Folder contents will not be modified)"));
+	erase_ask->set_text(TTR("Remove project from the list? (Folder contents will not be modified)"));
 	erase_ask->popup_centered_minsize();
 
 }
@@ -822,12 +823,23 @@ void ProjectManager::_bind_methods() {
 
 ProjectManager::ProjectManager() {
 
-	int margin = get_constant("margin",TTR("Dialogs"));
-	int button_margin = get_constant("button_margin",TTR("Dialogs"));
+	int margin = get_constant("margin","Dialogs");
+	int button_margin = get_constant("button_margin","Dialogs");
 
 	// load settings
 	if (!EditorSettings::get_singleton())
 		EditorSettings::create();
+
+	{
+		int dpi_mode = EditorSettings::get_singleton()->get("global/hidpi_mode");
+		if (dpi_mode==0) {
+			editor_set_hidpi( OS::get_singleton()->get_screen_dpi(0) > 150 );
+		} else if (dpi_mode==2) {
+			editor_set_hidpi(true);
+		} else {
+			editor_set_hidpi(false);
+		}
+	}
 
 	FileDialog::set_default_show_hidden_files(EditorSettings::get_singleton()->get("file_dialog/show_hidden_files"));
 
@@ -836,6 +848,7 @@ ProjectManager::ProjectManager() {
 	Ref<Theme> theme = Ref<Theme>( memnew( Theme ) );
 	set_theme(theme);
 	editor_register_icons(theme);
+	editor_register_fonts(theme);
 
 	String global_font = EditorSettings::get_singleton()->get("global/font");
 	if (global_font!="") {
@@ -853,10 +866,10 @@ ProjectManager::ProjectManager() {
 	panel->add_child(vb);
 	vb->set_area_as_parent_rect(20);
 
-	OS::get_singleton()->set_window_title(_MKSTR(VERSION_NAME)" - Project Manager");
+	OS::get_singleton()->set_window_title(_MKSTR(VERSION_NAME)+TTR(" - Project Manager"));
 
 	Label *l = memnew( Label );
-	l->set_text(_MKSTR(VERSION_NAME)" - Project Manager");
+	l->set_text(_MKSTR(VERSION_NAME)+TTR(" - Project Manager"));
 	l->add_font_override("font",get_font("large","Fonts"));
 	l->set_align(Label::ALIGN_CENTER);
 	vb->add_child(l);
@@ -999,8 +1012,8 @@ ProjectManager::ProjectManager() {
 		_scan_begin( EditorSettings::get_singleton()->get("global/autoscan_project_path") );
 	}
 
-	//get_ok()->set_text(TTR("Open"));
-	//get_ok()->set_text(TTR("Exit"));
+	//get_ok()->set_text("Open");
+	//get_ok()->set_text("Exit");
 
 	last_clicked = "";
 }
@@ -1016,7 +1029,7 @@ void ProjectListFilter::_setup_filters() {
 
 	filter_option->clear();
 	filter_option->add_item(TTR("Name"));
-	filter_option->add_item("Path");
+	filter_option->add_item(TTR("Path"));
 }
 
 void ProjectListFilter::_command(int p_command) {

@@ -62,7 +62,9 @@ class ScenesDock : public VBoxContainer {
 		FILE_MOVE,
 		FILE_REMOVE,
 		FILE_REIMPORT,
-		FILE_INFO
+		FILE_INFO,
+		FILE_SHOW_IN_EXPLORER,
+		FILE_COPY_PATH
 	};
 
 
@@ -76,15 +78,13 @@ class ScenesDock : public VBoxContainer {
 
 	Button *button_reload;
 	Button *button_favorite;
-	Button *button_fav_up;
-	Button *button_fav_down;
 	Button *button_back;
 	Button *display_mode;
 	Button *button_hist_next;
 	Button *button_hist_prev;
 	LineEdit *current_path;
 	LineEdit *search_box;
-	Button *search_button;
+	TextureFrame *search_icon;
 	HBoxContainer *path_hb;
 
 	bool split_mode;
@@ -136,8 +136,6 @@ class ScenesDock : public VBoxContainer {
 	void _push_to_history();
 
 
-	void _fav_up_pressed();
-	void _fav_down_pressed();
 	void _dir_selected();
 	void _update_tree();
 	void _rescan();
@@ -146,7 +144,6 @@ class ScenesDock : public VBoxContainer {
 
 	void _favorites_pressed();
 	void _open_pressed();
-	void _search_toggled();
 	void _search_changed(const String& p_text);
 
 
@@ -157,6 +154,8 @@ class ScenesDock : public VBoxContainer {
 		String name;
 		String path;
 		StringName type;
+		int import_status; //0 not imported, 1 - ok, 2- must reimport, 3- broken
+		Vector<String> sources;
 
 		bool operator<(const FileInfo& fi) const {
 			return name < fi.name;
@@ -175,6 +174,8 @@ protected:
 public:
 
 	String get_selected_path() const;
+
+	String get_current_path() const;
 	void focus_on_filter();
 
 	void fix_dependencies(const String& p_for_file);

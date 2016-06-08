@@ -65,7 +65,7 @@ public:
 		if (!f) {
 
 			error_dialog->set_text(TTR("Invalid source!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 
 		}
@@ -76,7 +76,7 @@ public:
 		if (csvh.size()<2) {
 
 			error_dialog->set_text(TTR("Invalid translation source!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			return;
 
 		}
@@ -171,7 +171,7 @@ public:
 
 	void popup_import(const String& p_from) {
 
-		popup_centered(Size2(400,400));
+		popup_centered(Size2(400,400)*EDSCALE);
 
 		if (p_from!="") {
 
@@ -232,12 +232,12 @@ public:
 
 		if (items.size()==0) {
 			error_dialog->set_text(TTR("No items to import!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 		}
 
 		if (!save_path->get_text().begins_with("res://")) {
-			error_dialog->set_text(TTR("No target path!!"));
-			error_dialog->popup_centered(Size2(200,100));
+			error_dialog->set_text(TTR("No target path!"));
+			error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 		}
 
 		EditorProgress progress("import_xl",TTR("Import Translations"),items.size());
@@ -258,8 +258,8 @@ public:
 			String savefile = save_path->get_text().plus_file(import_path->get_text().get_file().basename()+"."+locale+".xl");
 			Error err = plugin->import(savefile,imd);
 			if (err!=OK) {
-				error_dialog->set_text(TTR("Couldnt import!"));
-				error_dialog->popup_centered(Size2(200,100));
+				error_dialog->set_text(TTR("Couldn't import!"));
+				error_dialog->popup_centered(Size2(200,100)*EDSCALE);
 			} else if (add_to_project->is_pressed()) {
 
 				ProjectSettings::get_singleton()->add_translation(savefile);
@@ -387,11 +387,31 @@ String EditorTranslationImportPlugin::get_name() const {
 }
 String EditorTranslationImportPlugin::get_visible_name() const {
 
-	return "Translation";
+	return TTR("Translation");
 }
 void EditorTranslationImportPlugin::import_dialog(const String& p_from) {
 
 	dialog->popup_import(p_from);
+}
+
+
+
+void EditorTranslationImportPlugin::import_from_drop(const Vector<String>& p_drop, const String &p_dest_path) {
+
+
+	for(int i=0;i<p_drop.size();i++) {
+		String ext = p_drop[i].extension().to_lower();
+
+		if (ext=="csv") {
+
+			import_dialog();
+			dialog->_choose_file(p_drop[i]);
+			dialog->_choose_save_dir(p_dest_path);
+			break;
+		}
+	}
+
+
 }
 
 Error EditorTranslationImportPlugin::import(const String& p_path, const Ref<ResourceImportMetadata>& p_from) {

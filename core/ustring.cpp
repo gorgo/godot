@@ -3635,7 +3635,7 @@ String String::percent_decode() const {
 
 	CharString cs = utf8();
 	for(int i=0;i<cs.length();i++) {
-		
+
 		uint8_t c = cs[i];
 		if (c=='%' && i<length()-2) {
 
@@ -3963,11 +3963,31 @@ String String::sprintf(const Array& values, bool* error) const {
 
 #include "translation.h"
 
+#ifdef TOOLS_ENABLED
 String TTR(const String& p_text) {
 
 	if (TranslationServer::get_singleton()) {
-		return TranslationServer::get_singleton()->translate(p_text);
+		return TranslationServer::get_singleton()->tool_translate(p_text);
 	}
 
 	return p_text;
 }
+
+#endif
+
+String RTR(const String& p_text) {
+
+
+
+	if (TranslationServer::get_singleton()) {
+		String rtr = TranslationServer::get_singleton()->tool_translate(p_text);
+		if (rtr==String() || rtr==p_text) {
+			return TranslationServer::get_singleton()->translate(p_text);
+		} else {
+			return rtr;
+		}
+	}
+
+	return p_text;
+}
+

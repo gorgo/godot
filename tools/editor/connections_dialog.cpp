@@ -94,8 +94,8 @@ void ConnectDialog::_notification(int p_what) {
 
 	if (p_what==NOTIFICATION_DRAW) {
 
-		RID ci = get_canvas_item();
-		get_stylebox("panel","PopupMenu")->draw(ci,Rect2(Point2(),get_size()));
+		//RID ci = get_canvas_item();
+		//get_stylebox("panel","PopupMenu")->draw(ci,Rect2(Point2(),get_size()));
 	}
 
 	if (p_what==NOTIFICATION_ENTER_TREE) {
@@ -294,8 +294,8 @@ void ConnectDialog::_bind_methods() {
 
 ConnectDialog::ConnectDialog() {
 
-	int margin = get_constant("margin",TTR("Dialogs"));
-	int button_margin = get_constant("button_margin",TTR("Dialogs"));
+	int margin = get_constant("margin","Dialogs");
+	int button_margin = get_constant("button_margin","Dialogs");
 
 
 	Label * label = memnew( Label );
@@ -416,7 +416,7 @@ ConnectDialog::ConnectDialog() {
 
 
 	/*dst_method_list = memnew( MenuButton );
-	dst_method_list->set_text(TTR("List.."));
+	dst_method_list->set_text("List..");
 	dst_method_list->set_anchor( MARGIN_RIGHT, ANCHOR_END );
 	dst_method_list->set_anchor( MARGIN_LEFT, ANCHOR_END );
 	dst_method_list->set_anchor( MARGIN_TOP, ANCHOR_END );
@@ -429,7 +429,7 @@ ConnectDialog::ConnectDialog() {
 	make_callback = memnew( CheckButton );
 	make_callback->set_toggle_mode(true);
 	make_callback->set_pressed( EDITOR_DEF("text_editor/create_signal_callbacks",true));
-	make_callback->set_text(TTR("Make Function  "));
+	make_callback->set_text(TTR("Make Function"));
 	dstm_hb->add_child(make_callback);
 
 	deferred = memnew( CheckButton );
@@ -447,7 +447,7 @@ ConnectDialog::ConnectDialog() {
 	realtime->set_anchor( MARGIN_RIGHT, ANCHOR_END );
 	realtime->set_begin( Point2( 120, button_margin-10 ) );
 	realtime->set_end( Point2( 80, margin ) );
-	realtime->set_text(TTR("Realtime"));
+	realtime->set_text("Realtime");
 	add_child(realtime);
 */
 
@@ -465,7 +465,7 @@ ConnectDialog::ConnectDialog() {
 	add_child(error);
 	error->get_ok()->set_text(TTR("Close"));
 	get_ok()->set_text(TTR("Connect"));
-//	error->get_cancel()->set_text(TTR("Close"));
+//	error->get_cancel()->set_text("Close");
 
 
 
@@ -480,21 +480,21 @@ ConnectDialog::~ConnectDialog()
 
 
 
-void ConnectionsDialog::_notification(int p_what) {
+void ConnectionsDock::_notification(int p_what) {
 
 	if (p_what==NOTIFICATION_DRAW) {
 
-		RID ci = get_canvas_item();
-		get_stylebox("panel","PopupMenu")->draw(ci,Rect2(Point2(),get_size()));
+		//RID ci = get_canvas_item();
+		//get_stylebox("panel","PopupMenu")->draw(ci,Rect2(Point2(),get_size()));
 	}
 }
 
-void ConnectionsDialog::_close() {
+void ConnectionsDock::_close() {
 
 	hide();
 }
 
-void ConnectionsDialog::_connect() {
+void ConnectionsDock::_connect() {
 
 	TreeItem *it = tree->get_selected();
 	ERR_FAIL_COND(!it);
@@ -511,11 +511,14 @@ void ConnectionsDialog::_connect() {
 	StringArray args =  it->get_metadata(0).operator Dictionary()["args"];
 	int flags = CONNECT_PERSIST | (defer?CONNECT_DEFERRED:0) | (oshot?CONNECT_ONESHOT:0);
 
-	undo_redo->create_action(TTR("Connect '")+signal+"' to '"+String(dst_method)+"'");
+	undo_redo->create_action(vformat(TTR("Connect '%s' to '%s'"),signal,String(dst_method)));
 	undo_redo->add_do_method(node,"connect",signal,target,dst_method,binds,flags);
 	undo_redo->add_undo_method(node,"disconnect",signal,target,dst_method);
 	undo_redo->add_do_method(this,"update_tree");
 	undo_redo->add_undo_method(this,"update_tree");
+	undo_redo->add_do_method(EditorNode::get_singleton()->get_scene_tree_dock()->get_tree_editor(),"update_tree"); //to force redraw of scene tree
+	undo_redo->add_undo_method(EditorNode::get_singleton()->get_scene_tree_dock()->get_tree_editor(),"update_tree"); //to force redraw of scene tree
+
 	undo_redo->commit_action();
 
 
@@ -533,13 +536,13 @@ void ConnectionsDialog::_connect() {
 
 
 
-void ConnectionsDialog::ok_pressed() {
+void ConnectionsDock::_connect_pressed() {
 
 
 	TreeItem *item = tree->get_selected();
 	if (!item) {
 		//no idea how this happened, but disable
-		get_ok()->set_disabled(true);
+		connect_button->set_disabled(true);
 		return;
 	}
 	if (item->get_parent()==tree->get_root() || item->get_parent()->get_parent()==tree->get_root()) {
@@ -577,6 +580,8 @@ void ConnectionsDialog::ok_pressed() {
 		undo_redo->add_undo_method(node,"connect",c.signal,c.target,c.method,Vector<Variant>(),c.flags);
 		undo_redo->add_do_method(this,"update_tree");
 		undo_redo->add_undo_method(this,"update_tree");
+		undo_redo->add_do_method(EditorNode::get_singleton()->get_scene_tree_dock()->get_tree_editor(),"update_tree"); //to force redraw of scene tree
+		undo_redo->add_undo_method(EditorNode::get_singleton()->get_scene_tree_dock()->get_tree_editor(),"update_tree"); //to force redraw of scene tree
 		undo_redo->commit_action();
 
 		c.source->disconnect(c.signal,c.target,c.method);
@@ -584,7 +589,7 @@ void ConnectionsDialog::ok_pressed() {
 	}
 }
 /*
-void ConnectionsDialog::_remove() {
+void ConnectionsDock::_remove() {
 
 	if (!tree->get_selected())
 		return;
@@ -600,7 +605,7 @@ void ConnectionsDialog::_remove() {
 }
 */
 /*
-void ConnectionsDialog::_remove_confirm() {
+void ConnectionsDock::_remove_confirm() {
 
 	if (!tree->get_selected())
 		return;
@@ -610,7 +615,7 @@ void ConnectionsDialog::_remove_confirm() {
 
 	Dictionary meta=selected->get_metadata(0);
 
-	undo_redo->create_action(TTR("Remove Subscription"));
+	undo_redo->create_action("Remove Subscription");
 	undo_redo->add_do_method(node,"unsubscribe_path_event",meta["from_event"].operator String(),meta["from_path"].operator NodePath(),meta["to_method"].operator String());
 	undo_redo->add_undo_method(node,"subscribe_path_event_persist",meta["from_event"].operator String(),meta["from_path"].operator NodePath(),meta["to_method"].operator String(),Array(),false);
 	undo_redo->add_do_method(this,"update_tree");
@@ -620,18 +625,16 @@ void ConnectionsDialog::_remove_confirm() {
 }
 */
 
-struct _ConnectionsDialogMethodInfoSort {
+struct _ConnectionsDockMethodInfoSort {
 
 	_FORCE_INLINE_ bool operator()(const MethodInfo& a, const MethodInfo& b) const {
 		return a.name < b.name;
 	}
 };
 
-void ConnectionsDialog::update_tree() {
+void ConnectionsDock::update_tree() {
 
-	if (!is_visible())
-		return; //don't update if not visible, of course
-	tree->clear();
+	tree->clear();	
 
 	if (!node)
 		return;
@@ -643,7 +646,7 @@ void ConnectionsDialog::update_tree() {
 
 	node->get_signal_list(&node_signals);
 
-	//node_signals.sort_custom<_ConnectionsDialogMethodInfoSort>();
+	//node_signals.sort_custom<_ConnectionsDockMethodInfoSort>();
 	bool did_script=false;
 	StringName base = node->get_type();
 
@@ -773,68 +776,72 @@ void ConnectionsDialog::update_tree() {
 		}
 	}
 
-	get_ok()->set_text(TTR("Connect"));
-	get_ok()->set_disabled(true);
+	connect_button->set_text(TTR("Connect"));
+	connect_button->set_disabled(true);
 
 }
 
-void ConnectionsDialog::set_node(Node* p_node) {
+void ConnectionsDock::set_node(Node* p_node) {
 
 	node=p_node;
 	update_tree();
 }
 
-void ConnectionsDialog::_something_selected() {
+void ConnectionsDock::_something_selected() {
 
 	TreeItem *item = tree->get_selected();
 	if (!item) {
 		//no idea how this happened, but disable
-		get_ok()->set_text(TTR("Connect.."));
-		get_ok()->set_disabled(true);
+		connect_button->set_text(TTR("Connect.."));
+		connect_button->set_disabled(true);
 
 	} else if (item->get_parent()==tree->get_root() || item->get_parent()->get_parent()==tree->get_root()) {
 		//a signal - connect
-		get_ok()->set_text(TTR("Connect.."));
-		get_ok()->set_disabled(false);
+		connect_button->set_text(TTR("Connect.."));
+		connect_button->set_disabled(false);
 
 	} else {
 		//a slot- disconnect
-		get_ok()->set_text(TTR("Disconnect"));
-		get_ok()->set_disabled(false);
+		connect_button->set_text(TTR("Disconnect"));
+		connect_button->set_disabled(false);
 	}
 
 }
 
-void ConnectionsDialog::_bind_methods() {
+void ConnectionsDock::_bind_methods() {
 
 
-	ObjectTypeDB::bind_method("_connect",&ConnectionsDialog::_connect);
-	ObjectTypeDB::bind_method("_something_selected",&ConnectionsDialog::_something_selected);
-	ObjectTypeDB::bind_method("_close",&ConnectionsDialog::_close);
-//	ObjectTypeDB::bind_method("_remove_confirm",&ConnectionsDialog::_remove_confirm);
-	ObjectTypeDB::bind_method("update_tree",&ConnectionsDialog::update_tree);
+	ObjectTypeDB::bind_method("_connect",&ConnectionsDock::_connect);
+	ObjectTypeDB::bind_method("_something_selected",&ConnectionsDock::_something_selected);
+	ObjectTypeDB::bind_method("_close",&ConnectionsDock::_close);
+	ObjectTypeDB::bind_method("_connect_pressed",&ConnectionsDock::_connect_pressed);
+	ObjectTypeDB::bind_method("update_tree",&ConnectionsDock::update_tree);
 
 
 }
 
-ConnectionsDialog::ConnectionsDialog(EditorNode *p_editor) {
+ConnectionsDock::ConnectionsDock(EditorNode *p_editor) {
 
 	editor=p_editor;
-	set_title(TTR("Edit Connections.."));
-	set_hide_on_ok(false);
-
-	VBoxContainer *vbc = memnew( VBoxContainer );
-	add_child(vbc);
-	set_child_rect(vbc);
+	set_name(TTR("Signals"));
 
 
+	VBoxContainer *vbc = this;
 
 	tree = memnew( Tree );
 	tree->set_columns(1);
 	tree->set_select_mode(Tree::SELECT_ROW);
 	tree->set_hide_root(true);
-	vbc->add_margin_child(TTR("Connections:"),tree,true);
+	vbc->add_child(tree);
+	tree->set_v_size_flags(SIZE_EXPAND_FILL);
 
+	connect_button = memnew( Button );
+	connect_button->set_text("Connect");
+	HBoxContainer *hb = memnew( HBoxContainer);
+	vbc->add_child(hb);
+	hb->add_spacer();
+	hb->add_child(connect_button);
+	connect_button->connect("pressed",this,"_connect_pressed");
 //	add_child(tree);
 
 	connect_dialog = memnew( ConnectDialog );
@@ -858,12 +865,12 @@ ConnectionsDialog::ConnectionsDialog(EditorNode *p_editor) {
 	remove_confirm->connect("confirmed", this,"_remove_confirm");
 	connect_dialog->connect("connected", this,"_connect");
 	tree->connect("item_selected", this,"_something_selected");
-	get_cancel()->set_text(TTR("Close"));
 
+	add_constant_override("separation",3*EDSCALE);
 }
 
 
-ConnectionsDialog::~ConnectionsDialog()
+ConnectionsDock::~ConnectionsDock()
 {
 }
 

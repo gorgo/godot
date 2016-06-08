@@ -67,6 +67,7 @@ enum PropertyHint {
 	PROPERTY_HINT_COLOR_NO_ALPHA, ///< used for ignoring alpha component when editing a color
 	PROPERTY_HINT_IMAGE_COMPRESS_LOSSY,
 	PROPERTY_HINT_IMAGE_COMPRESS_LOSSLESS,
+	PROPERTY_HINT_OBJECT_ID,
 	PROPERTY_HINT_MAX,
 };
 
@@ -84,6 +85,7 @@ enum PropertyUsageFlags {
 	PROPERTY_USAGE_STORE_IF_NONZERO=512, //only store if nonzero
 	PROPERTY_USAGE_STORE_IF_NONONE=1024, //only store if false
 	PROPERTY_USAGE_NO_INSTANCE_STATE=2048,
+	PROPERTY_USAGE_RESTART_IF_CHANGED=4096,
 
 	PROPERTY_USAGE_DEFAULT=PROPERTY_USAGE_STORAGE|PROPERTY_USAGE_EDITOR|PROPERTY_USAGE_NETWORK,
 	PROPERTY_USAGE_DEFAULT_INTL=PROPERTY_USAGE_STORAGE|PROPERTY_USAGE_EDITOR|PROPERTY_USAGE_NETWORK|PROPERTY_USAGE_INTERNATIONALIZED,
@@ -387,6 +389,7 @@ friend void postinitialize_handler(Object*);
 	bool _can_translate;
 #ifdef TOOLS_ENABLED
 	bool _edited;
+	uint32_t _edited_version;
 #endif
 	ScriptInstance *script_instance;
 	RefPtr script;
@@ -588,6 +591,7 @@ public:
 #ifdef TOOLS_ENABLED
 	void set_edited(bool p_edited);
 	bool is_edited() const;
+	uint32_t get_edited_version() const; //this function is used to check when something changed beyond a point, it's used mainly for generating previews
 #endif
 
 	void set_script_instance(ScriptInstance *p_instance);
@@ -600,6 +604,8 @@ public:
 	void get_signal_list(List<MethodInfo> *p_signals ) const;
 	void get_signal_connection_list(const StringName& p_signal,List<Connection> *p_connections) const;
 	void get_all_signal_connections(List<Connection> *p_connections) const;
+	bool has_persistent_signal_connections() const;
+	void get_signals_connected_to_this(List<Connection> *p_connections) const;
 
 	Error connect(const StringName& p_signal, Object *p_to_object, const StringName& p_to_method,const Vector<Variant>& p_binds=Vector<Variant>(),uint32_t p_flags=0);
 	void disconnect(const StringName& p_signal, Object *p_to_object, const StringName& p_to_method);

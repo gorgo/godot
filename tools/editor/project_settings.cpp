@@ -81,10 +81,10 @@ void ProjectSettings::_notification(int p_what) {
 
 		translation_list->connect("button_pressed",this,"_translation_delete");
 		_update_actions();
-		popup_add->add_icon_item(get_icon("Keyboard","EditorIcons"),"Key",InputEvent::KEY);
-		popup_add->add_icon_item(get_icon("JoyButton","EditorIcons"),"Joy Button",InputEvent::JOYSTICK_BUTTON);
-		popup_add->add_icon_item(get_icon("JoyAxis","EditorIcons"),"Joy Axis",InputEvent::JOYSTICK_MOTION);
-		popup_add->add_icon_item(get_icon("Mouse","EditorIcons"),"Mouse Button",InputEvent::MOUSE_BUTTON);
+		popup_add->add_icon_item(get_icon("Keyboard","EditorIcons"),TTR("Key "),InputEvent::KEY);//"Key " - because the word 'key' has already been used as a key animation
+		popup_add->add_icon_item(get_icon("JoyButton","EditorIcons"),TTR("Joy Button"),InputEvent::JOYSTICK_BUTTON);
+		popup_add->add_icon_item(get_icon("JoyAxis","EditorIcons"),TTR("Joy Axis"),InputEvent::JOYSTICK_MOTION);
+		popup_add->add_icon_item(get_icon("Mouse","EditorIcons"),TTR("Mouse Button"),InputEvent::MOUSE_BUTTON);
 
 		List<String> tfn;
 		ResourceLoader::get_recognized_extensions_for_type("Translation",&tfn);
@@ -139,7 +139,7 @@ void ProjectSettings::_action_edited() {
 		ti->set_text(0,old_name);
 		add_at="input/"+old_name;
 
-		message->set_text(TTR("Invalid Action (Anything goes but / or :)."));
+		message->set_text(TTR("Invalid action (anything goes but '/' or ':')."));
 		message->popup_centered(Size2(300,100));
 		return;
 	}
@@ -151,7 +151,7 @@ void ProjectSettings::_action_edited() {
 		ti->set_text(0,old_name);
 		add_at="input/"+old_name;
 
-		message->set_text(TTR("Action '")+new_name+"' already exists!.");
+		message->set_text(vformat(TTR("Action '%s' already exists!"),new_name));
 		message->popup_centered(Size2(300,100));
 		return;
 	}
@@ -330,7 +330,7 @@ void ProjectSettings::_add_item(int p_item){
 
 			press_a_key_label->set_text(TTR("Press a Key.."));
 			last_wait_for_key=InputEvent();
-			press_a_key->popup_centered(Size2(250,80));
+			press_a_key->popup_centered(Size2(250,80)*EDSCALE);
 			press_a_key->grab_focus();
 		} break;
 		case InputEvent::MOUSE_BUTTON: {
@@ -357,7 +357,7 @@ void ProjectSettings::_add_item(int p_item){
 			for(int i=0;i<JOY_AXIS_MAX*2;i++) {
 
 				String desc = _axis_names[i];
-				device_index->add_item(TTR("Axis ")+itos(i/2)+" "+(i&1?"+":"-")+desc);
+				device_index->add_item(TTR("Axis")+" "+itos(i/2)+" "+(i&1?"+":"-")+desc);
 			}
 			device_input->popup_centered(Size2(350,95));
 
@@ -517,7 +517,7 @@ void ProjectSettings::_update_actions() {
 				} break;
 				case InputEvent::JOYSTICK_BUTTON: {
 
-					String str = TTR("Device ")+itos(ie.device)+", Button "+itos(ie.joy_button.button_index);
+					String str = TTR("Device")+" "+itos(ie.device)+", "+TTR("Button")+" "+itos(ie.joy_button.button_index);
 					if (ie.joy_button.button_index>=0 && ie.joy_button.button_index<JOY_BUTTON_MAX)
 						str+=String()+" ("+_button_names[ie.joy_button.button_index]+").";
 					else
@@ -528,14 +528,14 @@ void ProjectSettings::_update_actions() {
 				} break;
 				case InputEvent::MOUSE_BUTTON: {
 
-					String str = TTR("Device ")+itos(ie.device)+", ";
+					String str = TTR("Device")+" "+itos(ie.device)+", ";
 					switch (ie.mouse_button.button_index) {
 						case BUTTON_LEFT: str+=TTR("Left Button."); break;
 						case BUTTON_RIGHT: str+=TTR("Right Button."); break;
 						case BUTTON_MIDDLE: str+=TTR("Middle Button."); break;
 						case BUTTON_WHEEL_UP: str+=TTR("Wheel Up."); break;
 						case BUTTON_WHEEL_DOWN: str+=TTR("Wheel Down."); break;
-						default: str+=TTR("Button ")+itos(ie.mouse_button.button_index)+".";
+						default: str+=TTR("Button")+" "+itos(ie.mouse_button.button_index)+".";
 					}
 
 					action->set_text(0,str);
@@ -546,7 +546,7 @@ void ProjectSettings::_update_actions() {
 					int ax = ie.joy_motion.axis;
 					int n = 2*ax + (ie.joy_motion.axis_value<0 ? 0:1);
 					String desc = _axis_names[n];
-					String str = TTR("Device ")+itos(ie.device)+", Axis "+itos(ax)+" "+(ie.joy_motion.axis_value<0?"-":"+")+desc +".";
+					String str = TTR("Device")+" "+itos(ie.device)+", "+TTR("Axis")+" "+itos(ax)+" "+(ie.joy_motion.axis_value<0?"-":"+")+desc +".";
 					action->set_text(0,str);
 					action->set_icon(0,get_icon("JoyAxis","EditorIcons"));
 				} break;
@@ -650,13 +650,13 @@ void ProjectSettings::_action_add() {
 
 	String action = action_name->get_text();
 	if (action.find("/")!=-1 || action.find(":")!=-1 || action=="") {
-		message->set_text(TTR("Invalid Action (Anything goes but / or :)."));
+		message->set_text(TTR("Invalid action (anything goes but '/' or ':')."));
 		message->popup_centered(Size2(300,100));
 		return;
 	}
 
 	if (Globals::get_singleton()->has("input/"+action)) {
-		message->set_text(TTR("Action '")+action+"' already exists!.");
+		message->set_text(vformat(TTR("Action '%s' already exists!"),action));
 		message->popup_centered(Size2(300,100));
 		return;
 	}
@@ -710,7 +710,7 @@ void ProjectSettings::_item_checked(const String& p_item, bool p_check) {
 void ProjectSettings::_save() {
 
 	Error err = Globals::get_singleton()->save();
-	message->set_text(err!=OK?TTR("Error saving settings."):"Settings Saved OK.");
+	message->set_text(err!=OK?TTR("Error saving settings."):TTR("Settings saved OK."));
 	message->popup_centered(Size2(300,100));
 }
 
@@ -834,42 +834,111 @@ void ProjectSettings::_autoload_edited() {
 		return;
 
 	TreeItem *ti = autoload_list->get_edited();
-	if (!ti || autoload_list->get_edited_column()!=2)
+	int column = autoload_list->get_edited_column();
+
+	if (!ti || (column != 0 && column != 2))
 		return;
 
-	updating_autoload=true;
-	bool checked=ti->is_checked(2);
+	if (column == 0) {
+		String name = ti->get_text(0);
+		String old_name = selected_autoload.substr(selected_autoload.find("/")+1,selected_autoload.length());
 
-	String base="autoload/"+ti->get_text(0);
+		if (!name.is_valid_identifier()) {
+			ti->set_text(0,old_name);
+			message->set_text(TTR("Invalid name.")+"\n"+TTR("Valid characters:")+" a-z, A-Z, 0-9 or _");
+			message->popup_centered(Size2(300,100));
+			return;
+		}
 
-	String path = Globals::get_singleton()->get(base);
-	int order = Globals::get_singleton()->get_order(base);
+		if (ObjectTypeDB::type_exists(name)) {
+			ti->set_text(0,old_name);
+			message->set_text(TTR("Invalid name. Must not collide with an existing engine class name."));
+			message->popup_centered(Size2(400,100));
+			return;
+		}
 
-	if (path.begins_with("*"))
-		path=path.substr(1,path.length());
+		for(int i=0;i<Variant::VARIANT_MAX;i++) {
+			if (Variant::get_type_name(Variant::Type(i))==name) {
+				ti->set_text(0,old_name);
+				message->set_text(TTR("Invalid name. Must not collide with an existing buit-in type name."));
+				message->popup_centered(Size2(400,100));
+				return;
+			}
+		}
 
-	if (checked)
-		path="*"+path;
+		for(int i=0;i<GlobalConstants::get_global_constant_count();i++) {
+			if (GlobalConstants::get_global_constant_name(i)==name) {
+				ti->set_text(0,old_name);
+				message->set_text(TTR("Invalid name. Must not collide with an existing global constant name."));
+				message->popup_centered(Size2(400,100));
+				return;
+			}
+		}
 
-	undo_redo->create_action(TTR("Toggle Autoload GlobalVar"));
-	undo_redo->add_do_property(Globals::get_singleton(),base,path);
-	undo_redo->add_undo_property(Globals::get_singleton(),base,Globals::get_singleton()->get(base));
-	undo_redo->add_do_method(Globals::get_singleton(),"set_order",base,order); // keep order, as config order matters for these
-	undo_redo->add_undo_method(Globals::get_singleton(),"set_order",base,order);
-	undo_redo->add_do_method(this,"_update_autoload");
-	undo_redo->add_undo_method(this,"_update_autoload");
-	undo_redo->add_do_method(this,"_settings_changed");
-	undo_redo->add_undo_method(this,"_settings_changed");
-	undo_redo->commit_action();
-	updating_autoload=false;
+		if (Globals::get_singleton()->has("autoload/"+name)) {
+			ti->set_text(0,old_name);
+			message->set_text(vformat(TTR("Autoload '%s' already exists!"),name));
+			message->popup_centered(Size2(300,100));
+			return;
+		}
 
+		updating_autoload = true;
+
+		name = "autoload/"+name;
+		String path = Globals::get_singleton()->get(selected_autoload);
+		bool is_persisting = Globals::get_singleton()->is_persisting(selected_autoload);
+		int order = Globals::get_singleton()->get_order(selected_autoload);
+
+		undo_redo->create_action(TTR("Rename Autoload"));
+		undo_redo->add_do_property(Globals::get_singleton(),name,path);
+		undo_redo->add_do_method(Globals::get_singleton(),"set_persisting",name,is_persisting);
+		undo_redo->add_do_method(Globals::get_singleton(),"set_order",name,order);
+		undo_redo->add_do_method(Globals::get_singleton(),"clear",selected_autoload);
+		undo_redo->add_undo_property(Globals::get_singleton(),selected_autoload,path);
+		undo_redo->add_undo_method(Globals::get_singleton(),"set_persisting",selected_autoload,is_persisting);
+		undo_redo->add_undo_method(Globals::get_singleton(),"set_order",selected_autoload,order);
+		undo_redo->add_undo_method(Globals::get_singleton(),"clear",name);
+		undo_redo->add_do_method(this,"_update_autoload");
+		undo_redo->add_undo_method(this,"_update_autoload");
+		undo_redo->add_do_method(this,"_settings_changed");
+		undo_redo->add_undo_method(this,"_settings_changed");
+		undo_redo->commit_action();
+
+		selected_autoload = name;
+	} else if (column == 2) {
+		updating_autoload = true;
+
+		bool checked = ti->is_checked(2);
+		String base = "autoload/"+ti->get_text(0);
+		String path = Globals::get_singleton()->get(base);
+		int order = Globals::get_singleton()->get_order(base);
+
+		if (path.begins_with("*"))
+			path = path.substr(1,path.length());
+
+		if (checked)
+			path = "*" + path;
+
+		undo_redo->create_action(TTR("Toggle AutoLoad Globals"));
+		undo_redo->add_do_property(Globals::get_singleton(),base,path);
+		undo_redo->add_undo_property(Globals::get_singleton(),base,Globals::get_singleton()->get(base));
+		undo_redo->add_do_method(Globals::get_singleton(),"set_order",base,order); // keep order, as config order matters for these
+		undo_redo->add_undo_method(Globals::get_singleton(),"set_order",base,order);
+		undo_redo->add_do_method(this,"_update_autoload");
+		undo_redo->add_undo_method(this,"_update_autoload");
+		undo_redo->add_do_method(this,"_settings_changed");
+		undo_redo->add_undo_method(this,"_settings_changed");
+		undo_redo->commit_action();
+	}
+
+	updating_autoload = false;
 }
 
 void ProjectSettings::_autoload_add() {
 
 	String name = autoload_add_name->get_text();
 	if (!name.is_valid_identifier()) {
-		message->set_text("Invalid Name.\nValid characters: a-z,A-Z,0-9 or _");
+		message->set_text(TTR("Invalid name.")+"\n"+TTR("Valid characters:")+" a-z, A-Z, 0-9 or _");
 		message->popup_centered(Size2(300,100));
 		return;
 
@@ -877,7 +946,7 @@ void ProjectSettings::_autoload_add() {
 
 	if (ObjectTypeDB::type_exists(name)) {
 
-		message->set_text(TTR("Invalid Name.Must not collide with an existing engine class name."));
+		message->set_text(TTR("Invalid name. Must not collide with an existing engine class name."));
 		message->popup_centered(Size2(300,100));
 		return;
 
@@ -886,7 +955,7 @@ void ProjectSettings::_autoload_add() {
 	for(int i=0;i<Variant::VARIANT_MAX;i++) {
 		if (Variant::get_type_name(Variant::Type(i))==name) {
 
-			message->set_text(TTR("Invalid Name.Must not collide with an existing buit-in type name."));
+			message->set_text(TTR("Invalid name. Must not collide with an existing buit-in type name."));
 			message->popup_centered(Size2(300,100));
 			return;
 
@@ -897,7 +966,7 @@ void ProjectSettings::_autoload_add() {
 
 		if (GlobalConstants::get_global_constant_name(i)==name) {
 
-			message->set_text(TTR("Invalid Name.Must not collide with an existing global constant name."));
+			message->set_text(TTR("Invalid name. Must not collide with an existing global constant name."));
 			message->popup_centered(Size2(300,100));
 			return;
 		}
@@ -990,6 +1059,14 @@ void ProjectSettings::_autoload_delete(Object *p_item,int p_column, int p_button
 
 }
 
+void ProjectSettings::_autoload_selected() {
+	TreeItem *ti = autoload_list->get_selected();
+
+	if (!ti)
+		return;
+
+	selected_autoload = "autoload/"+ti->get_text(0);
+}
 
 void ProjectSettings::_translation_delete(Object *p_item,int p_column, int p_button) {
 
@@ -1348,6 +1425,7 @@ void ProjectSettings::_update_autoload() {
 		}
 		TreeItem *t = autoload_list->create_item(root);
 		t->set_text(0,name);
+		t->set_editable(0,true);
 		t->set_text(1,path);
 		t->set_cell_mode(2,TreeItem::CELL_MODE_CHECK);
 		t->set_editable(2,true);
@@ -1436,6 +1514,7 @@ void ProjectSettings::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("_update_autoload"),&ProjectSettings::_update_autoload);
 	ObjectTypeDB::bind_method(_MD("_autoload_delete"),&ProjectSettings::_autoload_delete);
 	ObjectTypeDB::bind_method(_MD("_autoload_edited"),&ProjectSettings::_autoload_edited);
+	ObjectTypeDB::bind_method(_MD("_autoload_selected"),&ProjectSettings::_autoload_selected);
 
 	ObjectTypeDB::bind_method(_MD("_clear_search_box"),&ProjectSettings::_clear_search_box);
 	ObjectTypeDB::bind_method(_MD("_toggle_search_bar"),&ProjectSettings::_toggle_search_bar);
@@ -1556,7 +1635,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 	save->set_anchor(MARGIN_BOTTOM,ANCHOR_END);
 	save->set_begin( Point2(80,28) );
 	save->set_end( Point2(10,20) );
-	save->set_text(TTR("Save"));
+	save->set_text("Save");
 	save->connect("pressed",this,"_save");
 */
 
@@ -1684,7 +1763,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 	save->set_anchor(MARGIN_BOTTOM,ANCHOR_END);
 	save->set_begin( Point2(80,28) );
 	save->set_end( Point2(10,20) );
-	save->set_text(TTR("Save"));
+	save->set_text("Save");
 	save->connect("pressed",this,"_save");
 */
 	setting=false;
@@ -1761,7 +1840,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 		tmc->add_child(translation_remap_options);
 
 		translation_remap_options->set_columns(2);
-		translation_remap_options->set_column_title(0,"Path");
+		translation_remap_options->set_column_title(0,TTR("Path"));
 		translation_remap_options->set_column_title(1,TTR("Locale"));
 		translation_remap_options->set_column_titles_visible(true);
 		translation_remap_options->set_column_expand(0,true);
@@ -1827,7 +1906,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 		autoload_list->set_column_title(0,TTR("Name"));
 		autoload_list->set_column_expand(0,true);
 		autoload_list->set_column_min_width(0,100);
-		autoload_list->set_column_title(1,"Path");
+		autoload_list->set_column_title(1,TTR("Path"));
 		autoload_list->set_column_expand(1,true);
 		autoload_list->set_column_min_width(1,100);
 		autoload_list->set_column_title(2,TTR("Singleton"));
@@ -1838,6 +1917,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 
 		autoload_list->connect("button_pressed",this,"_autoload_delete");
 		autoload_list->connect("item_edited",this,"_autoload_edited");
+		autoload_list->connect("cell_selected", this, "_autoload_selected");
 
 		updating_autoload=false;
 
@@ -1861,7 +1941,7 @@ ProjectSettings::ProjectSettings(EditorData *p_data) {
 
 	/*
 	Control * es = memnew( Control );
-	es->set_name(TTR("Export"));
+	es->set_name("Export");
 	tab_container->add_child(es);
 	export_settings = memnew( ProjectExportSettings );
 	es->add_child(export_settings);
