@@ -57,6 +57,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 //stupid linux.h
 #ifdef KEY_TAB
@@ -116,6 +117,37 @@ void OS_X11::initialize(const VideoMode& p_desired,int p_video_driver,int p_audi
 
 	char * modifiers = XSetLocaleModifiers ("@im=none");
 	ERR_FAIL_COND( modifiers == NULL );
+
+	const char* err;
+	xrr_get_monitors = NULL;
+	xrr_free_monitors = NULL;
+	int xrandr_major = 0;
+	int xrandr_minor = 0;
+	int event_base, error_base;
+	xrandr_ext_ok = XRRQueryExtension(x11_display,&event_base, &error_base);
+	xrandr_handle = dlopen("libXrandr.so", RTLD_LAZY);
+	err = dlerror();
+	if (!xrandr_handle) {
+		fprintf(stderr, "could not load libXrandr.so, Error: %s\n", err);
+	}
+	else {
+		XRRQueryVersion(x11_display, &xrandr_major, &xrandr_minor);
+		if (((xrandr_major << 8) | xrandr_minor) >= 0x0105) {
+			xrr_get_monitors = (xrr_get_monitors_t) dlsym(xrandr_handle, "XRRGetMonitors");
+			if (!xrr_get_monitors) {
+				err = dlerror();
+				fprintf(stderr, "could not find symbol XRRGetMonitors\nError: %s\n", err);
+			}
+			else {
+				xrr_free_monitors = (xrr_free_monitors_t) dlsym(xrandr_handle, "XRRFreeMonitors");
+				if (!xrr_free_monitors) {
+					err = dlerror();
+					fprintf(stderr, "could not find XRRFreeMonitors\nError: %s\n", err);
+					xrr_get_monitors = NULL;
+				}
+			}
+		}
+	}
 
 	xim = XOpenIM (x11_display, NULL, NULL, NULL);
 
@@ -480,6 +512,9 @@ void OS_X11::finalize() {
 	physics_2d_server->finish();
 	memdelete(physics_2d_server);
 
+	if (xrandr_handle)
+		dlclose(xrandr_handle);
+
 	XUnmapWindow( x11_display, x11_window );
 	XDestroyWindow( x11_display, x11_window );
 
@@ -720,6 +755,46 @@ Size2 OS_X11::get_screen_size(int p_screen) const {
 	Size2i size = Point2i(xsi[p_screen].width, xsi[p_screen].height);
 	XFree(xsi);
 	return size;
+}
+
+int OS_X11::get_screen_dpi(int p_screen) const {
+
+	//invalid screen?
+	ERR_FAIL_INDEX_V(p_screen, get_screen_count(), 0);
+
+	//Get physical monitor Dimensions through XRandR and calculate dpi
+	Size2 sc = get_screen_size(p_screen);
+	if (xrandr_ext_ok) {
+		int count = 0;
+		if (xrr_get_monitors) {
+			xrr_monitor_info *monitors = xrr_get_monitors(x11_display, x11_window, true, &count);
+			if (p_screen < count) {
+				double xdpi = sc.width  / (double) monitors[p_screen].mwidth  * 25.4;
+				double ydpi = sc.height / (double) monitors[p_screen].mheight * 25.4;
+				xrr_free_monitors(monitors);
+				return (xdpi + ydpi) / 2;
+			}
+			xrr_free_monitors(monitors);
+		}
+		else if (p_screen == 0) {
+			XRRScreenSize *sizes = XRRSizes(x11_display, 0, &count);
+			if (sizes) {
+				double xdpi = sc.width  / (double) sizes[0].mwidth  * 25.4;
+				double ydpi = sc.height / (double) sizes[0].mheight * 25.4;
+				return (xdpi + ydpi) / 2;
+			}
+		}
+	}
+
+	int width_mm  = DisplayWidthMM(x11_display, p_screen);
+	int height_mm = DisplayHeightMM(x11_display, p_screen);
+	double xdpi = (width_mm  ? sc.width  / (double) width_mm  * 25.4 : 0);
+	double ydpi = (height_mm ? sc.height / (double) height_mm * 25.4 : 0);
+	if (xdpi || xdpi)
+		return  (xdpi + ydpi)/(xdpi && ydpi ? 2 : 1);
+
+	//could not get dpi
+	return 96;
 }
 
 Point2 OS_X11::get_window_position() const {

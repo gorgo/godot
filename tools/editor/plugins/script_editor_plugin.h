@@ -142,6 +142,8 @@ class ScriptEditor : public VBoxContainer {
 		EDIT_INDENT_RIGHT,
 		EDIT_INDENT_LEFT,
 		EDIT_CLONE_DOWN,
+		FILE_TOOL_RELOAD,
+		FILE_TOOL_RELOAD_SOFT,
 		SEARCH_FIND,
 		SEARCH_FIND_NEXT,
 		SEARCH_FIND_PREV,
@@ -322,6 +324,8 @@ public:
 	void get_window_layout(Ref<ConfigFile> p_layout);
 
 	void set_scene_root_script( Ref<Script> p_script );
+
+	bool script_go_to_method(Ref<Script> p_script, const String& p_method);
 
 	virtual void edited_scene_changed();
 

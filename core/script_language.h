@@ -47,6 +47,7 @@ class ScriptServer {
 	static ScriptLanguage *_languages[MAX_LANGUAGES];
 	static int _language_count;
 	static bool scripting_enabled;
+	static bool reload_scripts_on_save;
 public:
 
 	static void set_scripting_enabled(bool p_enabled);
@@ -54,6 +55,9 @@ public:
 	static int get_language_count();
 	static ScriptLanguage *get_language(int p_idx);
 	static void register_language(ScriptLanguage *p_language);
+
+	static void set_reload_scripts_on_save(bool p_enable);
+	static bool is_reload_scripts_on_save_enabled();
 
 	static void init_languages();
 };
@@ -192,6 +196,7 @@ public:
 	virtual Vector<StackInfo> debug_get_current_stack_info() { return Vector<StackInfo>(); }
 
 	virtual void reload_all_scripts()=0;
+	virtual void reload_tool_script(const Ref<Script>& p_script,bool p_soft_reload)=0;
 	/* LOADER FUNCTIONS */
 
 	virtual void get_recognized_extensions(List<String> *p_extensions) const=0;

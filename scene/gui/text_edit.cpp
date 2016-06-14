@@ -2892,7 +2892,7 @@ int TextEdit::get_char_count() {
 	return totalsize; // omit last \n
 }
 
-Size2 TextEdit::get_minimum_size() {
+Size2 TextEdit::get_minimum_size() const {
 
 	return cache.style_normal->get_minimum_size();
 }
@@ -3261,7 +3261,9 @@ void TextEdit::_reset_caret_blink_timer() {
 
 void TextEdit::_toggle_draw_caret() {
 	draw_caret = !draw_caret;
-	update();
+	if (is_visible()) {
+		update();
+	}
 }
 
 void TextEdit::_update_caches() {

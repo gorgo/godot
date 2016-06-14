@@ -56,7 +56,7 @@
 #include "io/zip_io.h"
 #include "io/config_file.h"
 #include "animation_editor.h"
-
+#include "io/stream_peer_ssl.h"
 // plugins
 #include "plugins/sprite_frames_editor_plugin.h"
 #include "plugins/texture_region_editor_plugin.h"
@@ -217,7 +217,7 @@ void EditorNode::_notification(int p_what) {
 	if (p_what==NOTIFICATION_EXIT_TREE) {
 
 		editor_data.save_editor_external_data();
-
+		FileAccess::set_file_close_fail_notify_callback(NULL);
 		log->deinit(); // do not get messages anymore
 	}
 	if (p_what==NOTIFICATION_PROCESS) {
@@ -3089,6 +3089,7 @@ void EditorNode::set_addon_plugin_enabled(const String& p_addon,bool p_enabled) 
 	if (!p_enabled) {
 
 		EditorPlugin *addon = plugin_addons[p_addon];
+		editor_data.remove_editor_plugin( addon );
 		memdelete(addon); //bye
 		plugin_addons.erase(p_addon);
 		_update_addon_config();
@@ -5137,6 +5138,10 @@ void EditorNode::_dropped_files(const Vector<String>& p_files,int p_screen) {
 		EditorImportExport::get_singleton()->get_import_plugin(i)->import_from_drop(p_files,cur_path);
 	}
 }
+void EditorNode::_file_access_close_error_notify(const String& p_str) {
+
+	add_io_error("Unable to write to file '"+p_str+"', file in use, locked or lacking permissions.");
+}
 
 void EditorNode::_bind_methods() {
 
@@ -5231,7 +5236,6 @@ EditorNode::EditorNode() {
 	EditorHelp::generate_doc(); //before any editor classes are crated
 	SceneState::set_disable_placeholders(true);
 	editor_initialize_certificates(); //for asset sharing
-
 
 	InputDefault *id = Input::get_singleton()->cast_to<InputDefault>();
 
@@ -6274,7 +6278,7 @@ EditorNode::EditorNode() {
 	logo->set_texture(gui_base->get_icon("Logo","EditorIcons") );
 
 	warning = memnew( AcceptDialog );
-	add_child(warning);
+	gui_base->add_child(warning);
 
 
 
@@ -6381,8 +6385,12 @@ EditorNode::EditorNode() {
 	add_editor_plugin( memnew( CanvasItemEditorPlugin(this) ) );
 	add_editor_plugin( memnew( SpatialEditorPlugin(this) ) );
 	add_editor_plugin( memnew( ScriptEditorPlugin(this) ) );
-	add_editor_plugin( memnew( AssetLibraryEditorPlugin(this) ) );
 
+	if (StreamPeerSSL::is_available()) {
+		add_editor_plugin( memnew( AssetLibraryEditorPlugin(this) ) );
+	} else {
+		WARN_PRINT("Asset Library not available, as it requires SSL to work.");
+	}
 	//more visually meaningful to have this later
 	raise_bottom_panel_item(AnimationPlayerEditor::singleton);
 
@@ -6570,12 +6578,14 @@ EditorNode::EditorNode() {
 
 	_load_docks();
 
+	FileAccess::set_file_close_fail_notify_callback(_file_access_close_error_notify);
 
 
 }
 
 
 EditorNode::~EditorNode() {
+
 
 	memdelete( EditorHelp::get_doc_data() );
 	memdelete(editor_selection);

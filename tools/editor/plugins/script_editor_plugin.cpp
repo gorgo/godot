@@ -302,6 +302,7 @@ void ScriptTextEditor::_load_theme_settings() {
 	get_text_edit()->add_color_override("breakpoint_color", EDITOR_DEF("text_editor/breakpoint_color", Color(0.8,0.8,0.4,0.2)));
 	get_text_edit()->add_color_override("search_result_color",EDITOR_DEF("text_editor/search_result_color",Color(0.05,0.25,0.05,1)));
 	get_text_edit()->add_color_override("search_result_border_color",EDITOR_DEF("text_editor/search_result_border_color",Color(0.1,0.45,0.1,1)));
+	get_text_edit()->add_constant_override("line_spacing", EDITOR_DEF("text_editor/line_spacing",4));
 
 	Color keyword_color= EDITOR_DEF("text_editor/keyword_color",Color(0.5,0.0,0.2));
 
@@ -1412,6 +1413,16 @@ void ScriptEditor::_menu_option(int p_option) {
 
 
 			} break;
+			case FILE_TOOL_RELOAD:
+			case FILE_TOOL_RELOAD_SOFT: {
+
+				TextEdit *te = current->get_text_edit();
+				Ref<Script> scr = current->get_edited_script();
+				if (scr.is_null())
+					return;
+				scr->set_source_code(te->get_text());
+				scr->get_language()->reload_tool_script(scr,p_option==FILE_TOOL_RELOAD_SOFT);
+			} break;
 			case EDIT_TRIM_TRAILING_WHITESAPCE: {
 				_trim_trailing_whitespace(current->get_text_edit());
 			} break;
@@ -2136,12 +2147,17 @@ void ScriptEditor::save_all_scripts() {
 			continue;
 
 		Ref<Script> script = ste->get_edited_script();
+		if (script.is_valid())
+			ste->apply_code();
+
 		if (script->get_path()!="" && script->get_path().find("local://")==-1 &&script->get_path().find("::")==-1) {
 			//external script, save it
-			ste->apply_code();
+
 			editor->save_resource(script);
 			//ResourceSaver::save(script->get_path(),script);
+
 		}
+
 	}
 
 }
@@ -2261,6 +2277,8 @@ void ScriptEditor::_editor_settings_changed() {
 		ste->get_text_edit()->cursor_set_blink_speed(EditorSettings::get_singleton()->get("text_editor/caret_blink_speed"));
 		ste->get_text_edit()->set_draw_breakpoint_gutter(EditorSettings::get_singleton()->get("text_editor/show_breakpoint_gutter"));
 	}
+
+	ScriptServer::set_reload_scripts_on_save(EDITOR_DEF("text_editor/auto_reload_and_parse_scripts_on_save",true));
 
 }
 
@@ -2485,6 +2503,51 @@ void ScriptEditor::set_scene_root_script( Ref<Script> p_script ) {
 	}
 }
 
+bool ScriptEditor::script_go_to_method(Ref<Script> p_script, const String& p_method) {
+
+	Vector<String> functions;
+	bool found=false;
+
+	for (int i=0;i<tab_container->get_child_count();i++) {
+		ScriptTextEditor *current = tab_container->get_child(i)->cast_to<ScriptTextEditor>();
+
+		if (current && current->get_edited_script()==p_script) {
+			functions=current->get_functions();
+			found=true;
+			break;
+		}
+	}
+
+	if (!found) {
+		String errortxt;
+		int line=-1,col;
+		String text=p_script->get_source_code();
+		List<String> fnc;
+
+		if (p_script->get_language()->validate(text,line,col,errortxt,p_script->get_path(),&fnc)) {
+
+			for (List<String>::Element *E=fnc.front();E;E=E->next())
+				functions.push_back(E->get());
+		}
+	}
+
+	String method_search = p_method + ":";
+
+	for (int i=0;i<functions.size();i++) {
+		String function=functions[i];
+
+		if (function.begins_with(method_search)) {
+
+			edit(p_script);
+			int line=function.get_slice(":",1).to_int();
+			_goto_script_line2(line-1);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void ScriptEditor::set_live_auto_reload_running_scripts(bool p_enabled) {
 
 	auto_reload_running_scripts=p_enabled;
@@ -2602,6 +2665,8 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	edit_menu->get_popup()->add_item(TTR("Trim Trailing Whitespace"), EDIT_TRIM_TRAILING_WHITESAPCE, KEY_MASK_CTRL|KEY_MASK_ALT|KEY_T);
 	edit_menu->get_popup()->add_item(TTR("Auto Indent"),EDIT_AUTO_INDENT,KEY_MASK_CMD|KEY_I);
 	edit_menu->get_popup()->connect("item_pressed", this,"_menu_option");
+	edit_menu->get_popup()->add_separator();
+	edit_menu->get_popup()->add_item(TTR("Soft Reload Script"),FILE_TOOL_RELOAD_SOFT,KEY_MASK_CMD|KEY_MASK_SHIFT|KEY_R);
 
 
 	search_menu = memnew( MenuButton );
@@ -2905,6 +2970,7 @@ ScriptEditorPlugin::ScriptEditorPlugin(EditorNode *p_node) {
 	script_editor->hide();
 
 	EDITOR_DEF("text_editor/auto_reload_scripts_on_external_change",true);
+	ScriptServer::set_reload_scripts_on_save(EDITOR_DEF("text_editor/auto_reload_and_parse_scripts_on_save",true));
 	EDITOR_DEF("text_editor/open_dominant_script_on_scene_change",true);
 	EDITOR_DEF("external_editor/use_external_editor",false);
 	EDITOR_DEF("external_editor/exec_path","");
@@ -2915,6 +2981,7 @@ ScriptEditorPlugin::ScriptEditorPlugin(EditorNode *p_node) {
 	EDITOR_DEF("text_editor/group_help_pages",true);
 	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING,"external_editor/exec_path",PROPERTY_HINT_GLOBAL_FILE));
 	EDITOR_DEF("external_editor/exec_flags","");
+
 
 }
 

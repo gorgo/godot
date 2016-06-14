@@ -453,7 +453,7 @@ void EditorHelpIndex::_update_class_list() {
 			String type = E->key();
 
 			while(type != "") {
-				if (type.findn(filter)!=-1) {
+				if (filter.is_subsequence_ofi(type)) {
 
 					if (to_select.empty()) {
 						to_select = type;
@@ -649,6 +649,7 @@ void EditorHelp::_class_desc_input(const InputEvent& p_input) {
 		class_desc->set_selection_enabled(false);
 		class_desc->set_selection_enabled(true);
 	}
+	set_focused();
 }
 
 void EditorHelp::_add_type(const String& p_type) {

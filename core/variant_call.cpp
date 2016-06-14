@@ -247,6 +247,8 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	VCALL_LOCALMEM1R(String,matchn);
 	VCALL_LOCALMEM1R(String,begins_with);
 	VCALL_LOCALMEM1R(String,ends_with);
+	VCALL_LOCALMEM1R(String,is_subsequence_of);
+	VCALL_LOCALMEM1R(String,is_subsequence_ofi);
 	VCALL_LOCALMEM2R(String,replace);
 	VCALL_LOCALMEM2R(String,replacen);
 	VCALL_LOCALMEM2R(String,insert);
@@ -464,7 +466,8 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	VCALL_LOCALMEM1(Array,resize);
 	VCALL_LOCALMEM2(Array,insert);
 	VCALL_LOCALMEM1(Array,remove);
-	VCALL_LOCALMEM1R(Array,find);
+	VCALL_LOCALMEM2R(Array,find);
+	VCALL_LOCALMEM2R(Array,rfind);
 	VCALL_LOCALMEM1R(Array,find_last);
 	VCALL_LOCALMEM1R(Array,count);
 	VCALL_LOCALMEM1(Array,erase);
@@ -1268,6 +1271,8 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	ADDFUNC1(STRING,BOOL,String,matchn,STRING,"expr",varray());
 	ADDFUNC1(STRING,BOOL,String,begins_with,STRING,"text",varray());
 	ADDFUNC1(STRING,BOOL,String,ends_with,STRING,"text",varray());
+	ADDFUNC1(STRING,BOOL,String,is_subsequence_of,STRING,"text",varray());
+	ADDFUNC1(STRING,BOOL,String,is_subsequence_ofi,STRING,"text",varray());
 
 	ADDFUNC2(STRING,STRING,String,replace,STRING,"what",STRING,"forwhat",varray());
 	ADDFUNC2(STRING,STRING,String,replacen,STRING,"what",STRING,"forwhat",varray());
@@ -1453,7 +1458,8 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	ADDFUNC2(ARRAY,NIL,Array,insert,INT,"pos",NIL,"value",varray());
 	ADDFUNC1(ARRAY,NIL,Array,remove,INT,"pos",varray());
 	ADDFUNC1(ARRAY,NIL,Array,erase,NIL,"value",varray());
-	ADDFUNC1(ARRAY,INT,Array,find,NIL,"value",varray());
+	ADDFUNC2(ARRAY,INT,Array,find,NIL,"what",INT,"from",varray(0));
+	ADDFUNC2(ARRAY,INT,Array,rfind,NIL,"what",INT,"from",varray(-1));
 	ADDFUNC1(ARRAY,INT,Array,find_last,NIL,"value",varray());
 	ADDFUNC1(ARRAY,INT,Array,count,NIL,"value",varray());
 	ADDFUNC0(ARRAY,NIL,Array,pop_back,varray());
