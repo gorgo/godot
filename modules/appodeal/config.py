@@ -8,6 +8,6 @@ def configure(env):
         env.android_add_java_dir("src")
         #env.android_add_res_dir("res")
         jarpath = "../../../modules/appodeal/"
-        env.android_add_dependency("compile files('"+jarpath+"jar/android-support-v7-recyclerview-23.1.1.jar', '"+jarpath+"jar/applovin-6.1.5.jar', '"+jarpath+"jar/appodeal-1.14.14.jar', '"+jarpath+"jar/chartboost-6.4.1.jar', '"+jarpath+"jar/flurry-analytics-6.2.0.jar', '"+jarpath+"jar/inmobi-5.3.0.jar', '"+jarpath+"jar/my-target-4.3.10.jar', '"+jarpath+"jar/unity-ads-1.4.7.jar', '"+jarpath+"jar/yandex-metrica-2.41.jar')")
+        env.android_add_dependency("compile files('"+jarpath+"jar/android-support-v7-recyclerview-23.1.1.jar', '"+jarpath+"jar/applovin-6.2.2.jar', '"+jarpath+"jar/appodeal-1.14.15.jar', '"+jarpath+"jar/chartboost-6.4.1.jar', '"+jarpath+"jar/flurry-analytics-6.2.0.jar', '"+jarpath+"jar/inmobi-5.3.1.jar', '"+jarpath+"jar/my-target-4.5.1.jar', '"+jarpath+"jar/unity-ads-1.4.7.jar', '"+jarpath+"jar/yandex-metrica-2.41.jar')")
         env.android_add_dependency("compile 'com.google.android.gms:play-services-ads:8.4.0'")
         env.android_add_to_permissions("ManifestPermissionsChunk.xml")
