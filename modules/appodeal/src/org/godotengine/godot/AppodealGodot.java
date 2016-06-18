@@ -17,19 +17,25 @@ public class AppodealGodot extends Godot.SingletonBase {
 
     public void showBanner() {
       _isBannerCancelled = false;
-      if (Appodeal.isLoaded(Appodeal.BANNER_TOP))
+      //if (Appodeal.isLoaded(Appodeal.BANNER_TOP))
         Appodeal.show(mainActivity, Appodeal.BANNER_TOP);
-      else {
-        Log.i("", "Appodeal: start cache");
-        mainActivity.runOnUiThread(new Runnable() {
-                public void run() {
-                  Appodeal.cache(mainActivity, Appodeal.BANNER_TOP);
-                }
-              }
-              );
-        Log.i("", "Appodeal: end cache (sync)");
+        if (! Appodeal.isLoaded(Appodeal.BANNER_TOP))
+          Appodeal.cache(mainActivity, Appodeal.BANNER_TOP);
+      // else {
+      //   Log.i("", "Appodeal: start cache");
+      //   mainActivity.runOnUiThread(new Runnable() {
+      //           public void run() {
+      //             Appodeal.cache(mainActivity, Appodeal.BANNER_TOP);
+      //           }
+      //         }
+      //         );
+      //   Log.i("", "Appodeal: end cache (sync)");
+      //
+      // }
+    }
 
-      }
+    public void cacheBannner() {
+      Appodeal.cache(mainActivity, Appodeal.BANNER_TOP);
     }
 
     public void hideBanner() {
@@ -56,12 +62,12 @@ public class AppodealGodot extends Godot.SingletonBase {
         //register class name and functions to bind
         mainActivity = p_activity;
 
-        registerClass("AppodealGodot", new String[]{"showBanner", "hideBanner", "showRewarded"});
+        registerClass("AppodealGodot", new String[]{"showBanner", "hideBanner", "cacheBanner", "showRewarded"});
 
 
         Appodeal.disableLocationPermissionCheck();
         Appodeal.setAutoCache(Appodeal.REWARDED_VIDEO, false);
-        Appodeal.setAutoCache(Appodeal.BANNER, false);
+        Appodeal.setAutoCache(Appodeal.BANNER_TOP, false);
 
         Appodeal.setRewardedVideoCallbacks(new RewardedVideoCallbacks() {
             @Override
@@ -85,34 +91,34 @@ public class AppodealGodot extends Godot.SingletonBase {
                 GodotLib.calldeferred(_callbackScript, "rewardedVideoFinished", new Object[]{});
             }
             @Override
-            public void onRewardedVideoClosed() {
+            public void onRewardedVideoClosed(boolean finished) {
               //showToast("onRewardedVideoClosed");
             }
 
         });
-        Appodeal.setBannerCallbacks(new BannerCallbacks() {
-          @Override
-          public void onBannerLoaded() {
-            if (! _isBannerCancelled)
-              Appodeal.show(mainActivity, Appodeal.BANNER_TOP);
-          }
-          @Override
-          public void onBannerFailedToLoad() {}
-
-          @Override
-          public void onBannerShown() {}
-
-          @Override
-          public void onBannerClicked() {}
-
-        });
+        // Appodeal.setBannerCallbacks(new BannerCallbacks() {
+        //   @Override
+        //   public void onBannerLoaded() {
+        //     if (! _isBannerCancelled)
+        //       Appodeal.show(mainActivity, Appodeal.BANNER_TOP);
+        //   }
+        //   @Override
+        //   public void onBannerFailedToLoad() {}
+        //
+        //   @Override
+        //   public void onBannerShown() {}
+        //
+        //   @Override
+        //   public void onBannerClicked() {}
+        //
+        // });
         // you might want to try initializing your singleton here, but android
         // threads are weird and this runs in another thread, so you usually have to do
         p_activity.runOnUiThread(new Runnable() {
                 public void run() {
                     //useful way to get config info from engine.cfg
                     String appKey = GodotLib.getGlobal("appodeal/appKey");
-                    Appodeal.initialize(mainActivity, appKey, Appodeal.BANNER | Appodeal.REWARDED_VIDEO);
+                    Appodeal.initialize(mainActivity, appKey, Appodeal.BANNER_TOP | Appodeal.REWARDED_VIDEO);
 
                 }
         });
@@ -137,7 +143,7 @@ public class AppodealGodot extends Godot.SingletonBase {
 
     protected void onMainPause() {}
     protected void onMainResume() {
-      Appodeal.onResume(mainActivity, Appodeal.BANNER);
+      Appodeal.onResume(mainActivity, Appodeal.BANNER_TOP);
     }
     protected void onMainDestroy() {}
 

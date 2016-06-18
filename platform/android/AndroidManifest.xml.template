@@ -11,6 +11,17 @@
                       android:xlargeScreens="true"/>
 
     <application android:label="@string/godot_project_name_string" android:icon="@drawable/icon" android:allowBackup="false" $$ADD_APPATTRIBUTE_CHUNKS$$ >
+				<activity
+						android:name="org.godotengine.godot.SplashActivity"
+						android:label="@string/godot_project_name_string"
+						android:theme="@style/SplashTheme"
+						android:screenOrientation="sensorPortrait">
+						<!--<intent-filter>
+								<action android:name="android.intent.action.MAIN" />
+
+								<category android:name="android.intent.category.LAUNCHER" />
+						</intent-filter>-->
+				</activity>
 
 				<activity android:name="org.godotengine.godot.Godot"
                   android:label="@string/godot_project_name_string"
