@@ -767,7 +767,11 @@ float SAMPLE_SHADOW_TEX(vec2 p_uv,float p_depth) {
 
 #if !defined(USE_SHADOW_PCF) && !defined(USE_SHADOW_ESM)
 
-#define SAMPLE_SHADOW_TEX(m_coord,m_depth) (SHADOW_DEPTH(shadow_texture,m_coord) < m_depth ?  0.0 : 1.0)
+//#define SAMPLE_SHADOW_TEX(m_coord,m_depth) (SHADOW_DEPTH(shadow_texture,m_coord) < m_depth ?  0.0 : 1.0)
+float SAMPLE_SHADOW_TEX(vec2 m_coord, float m_depth) {
+	highp float sh_d = SHADOW_DEPTH(shadow_texture,m_coord);
+	return sh_d < m_depth ?  (sh_d >= 1.0 ? 1.0 : 0.0) : 1.0;
+}
 
 #endif
 
@@ -1306,5 +1310,3 @@ LIGHT_SHADER_CODE
 	gl_FragColor = diffuse;
 #endif
 }
-
-

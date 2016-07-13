@@ -73,6 +73,11 @@ public class GodotGoogleGamePlayServices extends Godot.SingletonBase implements 
 		_lockScriptId = lockScriptId;
 		_submittingScoreAmount = score;
 		sendScoreAndShowLeaderboard((long)score);
+		mainActivity.runOnUiThread(new Runnable() {
+			public void run() {
+				Toast.makeText(mainActivity, "trying to connect...", Toast.LENGTH_LONG).show();
+			}
+		});
 	}
 
 	public void submitScoreAndShowLeaderboard(int score) {
@@ -117,7 +122,8 @@ public class GodotGoogleGamePlayServices extends Godot.SingletonBase implements 
 			"submitScoreSilently",
 			"shareSomeContent",
 			"rateAppInMarket",
-			"getPackageId"
+			"getPackageId",
+			"submitImmediate"
 		});
 		mainActivity = p_activity;
 		p_activity.runOnUiThread(new Runnable() {
@@ -163,7 +169,8 @@ public class GodotGoogleGamePlayServices extends Godot.SingletonBase implements 
 
 	private static final String STATE_RESOLVING_ERROR = "resolving_error";
 
-	private static final String LEADERBOARD_ID = "CgkImouB6IoUEAIQAA";
+	private static final String LEADERBOARD_ID = "CgkIr6eIqOAMEAIQAQ"; // since we
+	// cannot yet modify manifest on export process, where app_id is stored, no reason to store this in engine.cfg
 	private static final int REQUEST_LEADERBOARD = 1002;
 
 	// 				/*
@@ -401,17 +408,30 @@ public void sendScore (int score, boolean silent) {
 class myLeaderBoardSubmitScoreCallback implements ResultCallback<SubmitScoreResult> {
 	@Override
 	public void onResult(SubmitScoreResult res) {
+		Log.i("godot"," submit score callback, code = " + res.getStatus().getStatusCode());
+
 		if (res.getStatus().getStatusCode() == 0) {
 			requestShowLeaderboard();
 		}
+		else {
+			Toast.makeText(mainActivity, "cannot send score, error "+res.getStatus().getStatusCode(), Toast.LENGTH_LONG).show();
+		}
 	}
 }
+
+public void submitImmediate() {
+	Log.i("godot","submit immediate score 5");
+	Games.Leaderboards.submitScoreImmediate(getClient(), LEADERBOARD_ID, 5).
+		setResultCallback(new myLeaderBoardSubmitScoreCallback());
+}
+
 
 public void sendScoreAndShowLeaderboard (long score) {
 	if (score < 0) return;
 	tryToConnect(ConnectReason.submitScoreAndShowLeaderboard);
 	GoogleApiClient client = getClient();
 	if (client.isConnected()) {
+		Log.i("godot","client conneected, submitting score = " + score);
 		Games.Leaderboards.submitScoreImmediate(client, LEADERBOARD_ID, score).
 			setResultCallback(new myLeaderBoardSubmitScoreCallback());
 	}
@@ -420,7 +440,7 @@ public void sendScoreAndShowLeaderboard (long score) {
 
 protected void setGameLocked (boolean value) {
 	if (_lockScriptId != -1) {
-		Log.i("123"," godot goin to lock calldeferred");
+		Log.i("godot"," godot goin to lock calldeferred");
 	  GodotLib.calldeferred(_lockScriptId, "lock", new Object[]{value});
 	}
 	if (value == false) {

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Google Play game services IDs.
+Save this file as res/values/games-ids.xml in your project.
+-->
 <resources>
-    <string name="app_id">690097243546</string>
-    <string name="leaderboard_top_scores">CgkImouB6IoUEAIQAA</string>
+  <string name="app_id">438170686383</string>
+  <string name="package_name">com.gamedevblg.football</string>
+  <string name="leaderboard_one_time_record">CgkIr6eIqOAMEAIQAQ</string>
 </resources>

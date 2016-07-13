@@ -3,7 +3,7 @@ buildscript {
 		jcenter()
 	}
 	dependencies {
-		classpath 'com.android.tools.build:gradle:1.2.0'
+		classpath 'com.android.tools.build:gradle:1.3.1'
 	}
 }
 
@@ -18,12 +18,9 @@ allprojects {
 
 dependencies {
 
+	compile 'com.android.support:support-v4:23.+'  // can be removed if minSdkVersion 16 and modify DownloadNotification.java & V14CustomNotification.java
 	compile 'com.google.android.gms:play-services-analytics:8.4.0'
-compile files('../../../modules/appodeal/jar/android-support-v7-recyclerview-23.1.1.jar', '../../../modules/appodeal/jar/applovin-6.2.2.jar', '../../../modules/appodeal/jar/appodeal-1.14.15.jar', '../../../modules/appodeal/jar/chartboost-6.4.1.jar', '../../../modules/appodeal/jar/flurry-analytics-6.2.0.jar', '../../../modules/appodeal/jar/inmobi-5.3.1.jar', '../../../modules/appodeal/jar/my-target-4.5.1.jar', '../../../modules/appodeal/jar/unity-ads-1.4.7.jar', '../../../modules/appodeal/jar/yandex-metrica-2.41.jar')
-compile 'com.google.android.gms:play-services-ads:8.4.0'
 compile 'com.google.android.gms:play-services-games:8.4.0'
-compile files('../../../modules/appodeal/jar/android-support-v7-recyclerview-23.1.1.jar', '../../../modules/appodeal/jar/applovin-6.1.5.jar', '../../../modules/appodeal/jar/appodeal-1.14.12.jar', '../../../modules/appodeal/jar/chartboost-6.4.1.jar', '../../../modules/appodeal/jar/flurry-analytics-6.2.0.jar', '../../../modules/appodeal/jar/inmobi-5.2.3.jar', '../../../modules/appodeal/jar/my-target-4.3.10.jar', '../../../modules/appodeal/jar/unity-ads-1.4.7.jar', '../../../modules/appodeal/jar/yandex-metrica-2.32.jar')
-compile 'com.google.android.gms:play-services-ads:8.4.0'
 
 }
 
@@ -31,10 +28,12 @@ android {
 
 	lintOptions {
 		abortOnError false
+		disable 'MissingTranslation'
 	}
 
-	compileSdkVersion 19
-	buildToolsVersion "19.1"
+	compileSdkVersion 23
+	buildToolsVersion "23.0.3"
+	useLibrary 'org.apache.http.legacy'
 
 	packagingOptions {
 		exclude 'META-INF/LICENSE'
@@ -42,13 +41,13 @@ android {
 	}
 	defaultConfig {
 		minSdkVersion 14
-		targetSdkVersion 19
+		targetSdkVersion 23
 	}
 	sourceSets {
 		main {
 			manifest.srcFile 'AndroidManifest.xml'
 			java.srcDirs = ['src'
-				,'/home/gorgo/projects/godot/modules/googleAnalytics/src','/home/gorgo/projects/godot/modules/appodeal/src','/home/gorgo/projects/godot/modules/GodotGoogleGamePlayServices/src','/home/gorgo/projects/godot/modules/RecordLevel/src'
+				,'/home/gorgo/projects/godot/modules/googleAnalytics/src','/home/gorgo/projects/godot/modules/GodotGoogleGamePlayServices/src','/home/gorgo/projects/godot/modules/RecordLevel/src'
 			]
 			resources.srcDirs = [
 				'res'

@@ -1,9 +1,6 @@
 package org.godotengine.godot; // for 2.0
 
 import android.app.Activity;
-import com.appodeal.ads.Appodeal;
-import com.appodeal.ads.RewardedVideoCallbacks;
-import com.appodeal.ads.BannerCallbacks;
 import android.content.Intent;
 import javax.microedition.khronos.opengles.GL10;
 import android.widget.Toast;
@@ -24,6 +21,8 @@ public class RecordLevel extends Godot.SingletonBase {
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
     private boolean isRecording = false;
+    private int recordingBufferSize = 0;
+    private int recordingSampleCount = 0;
 
     static public Godot.SingletonBase initialize(Activity p_activity) {
         return new RecordLevel(p_activity);
@@ -54,11 +53,16 @@ public class RecordLevel extends Godot.SingletonBase {
     int BytesPerElement = 2; // 2 bytes in 16bit format
 
     private void startRecording() {
+        if (isRecording) return;
+        int minBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE, RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+        minBufferSize = Integer.highestOneBit(minBufferSize) << 1;
 
         recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
                 RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
-
+                RECORDER_AUDIO_ENCODING, minBufferSize);
+        recordingBufferSize = minBufferSize;
+        recordingSampleCount = minBufferSize / BytesPerElement;
+        Log.i("sound football", "min buffer size = "+minBufferSize);
         recorder.startRecording();
         isRecording = true;
         recordingThread = new Thread(new Runnable() {
@@ -77,14 +81,14 @@ public class RecordLevel extends Godot.SingletonBase {
         while (isRecording) {
             // gets the voice output from microphone to byte format
 
-            recorder.read(sData, 0, BufferElements2Rec);
+            recorder.read(sData, 0, recordingSampleCount);
             short maxVal = 0;
             for (int i = 0; i < BufferElements2Rec; ++i) {
                 if (sData[i] > maxVal) {
                     maxVal = sData[i];
                 }
             }
-            Log.i("vasa","sound peak = " + maxVal);
+            //Log.i("vasa","sound peak = " + maxVal);
             float maxValFloat = (float) maxVal / 32000;
             reportRecordVolume(maxValFloat);
         }
@@ -109,7 +113,7 @@ public class RecordLevel extends Godot.SingletonBase {
 
     protected void onMainPause() {}
     protected void onMainResume() {
-      Appodeal.onResume(mainActivity, Appodeal.BANNER);
+    
     }
     protected void onMainDestroy() {}
 
