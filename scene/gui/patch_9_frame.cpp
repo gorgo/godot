@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  patch_9_frame.cpp                                                    */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "patch_9_frame.h"
 
 #include "servers/visual_server.h"
@@ -51,6 +79,8 @@ void Patch9Frame::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("set_draw_center","draw_center"), & Patch9Frame::set_draw_center );
 	ObjectTypeDB::bind_method(_MD("get_draw_center"), & Patch9Frame::get_draw_center );
 
+	ADD_SIGNAL(MethodInfo("texture_changed"));
+
 	ADD_PROPERTYNZ( PropertyInfo( Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), _SCS("set_texture"),_SCS("get_texture") );
 	ADD_PROPERTYNO( PropertyInfo( Variant::COLOR, "modulate"), _SCS("set_modulate"),_SCS("get_modulate") );
 	ADD_PROPERTYNO( PropertyInfo( Variant::BOOL, "draw_center"), _SCS("set_draw_center"),_SCS("get_draw_center") );
@@ -65,11 +95,14 @@ void Patch9Frame::_bind_methods() {
 
 void Patch9Frame::set_texture(const Ref<Texture>& p_tex) {
 
+	if (texture==p_tex)
+		return;
 	texture=p_tex;
 	update();
 	//if (texture.is_valid())
 	//	texture->set_flags(texture->get_flags()&(~Texture::FLAG_REPEAT)); //remove repeat from texture, it looks bad in sprites
 	minimum_size_changed();
+	emit_signal("texture_changed");
 }
 
 Ref<Texture> Patch9Frame::get_texture() const {

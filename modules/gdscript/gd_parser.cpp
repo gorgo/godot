@@ -31,6 +31,7 @@
 #include "io/resource_loader.h"
 #include "os/file_access.h"
 #include "script_language.h"
+#include "gd_script.h"
 
 template<class T>
 T* GDParser::alloc_node() {
@@ -216,7 +217,7 @@ bool GDParser::_get_completable_identifier(CompletionType p_type,StringName& ide
 }
 
 
-GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_allow_assign) {
+GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_allow_assign,bool p_parsing_constant) {
 
 //	Vector<Node*> expressions;
 //	Vector<OperatorNode::Operator> operators;
@@ -243,7 +244,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 			//subexpression ()
 			tokenizer->advance();
 			parenthesis++;
-			Node* subexpr = _parse_expression(p_parent,p_static);
+			Node* subexpr = _parse_expression(p_parent,p_static,p_allow_assign,p_parsing_constant);
 			parenthesis--;
 			if (!subexpr)
 				return NULL;
@@ -477,20 +478,30 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 		} else if (tokenizer->get_token()==GDTokenizer::TK_IDENTIFIER) {
 			//identifier (reference)
 
-			const ClassNode* cln = static_cast<const ClassNode*>(get_parse_tree());
+			const ClassNode* cln = current_class;
 			bool             bfn = false;
 			StringName       identifier;
 			if (_get_completable_identifier(COMPLETION_IDENTIFIER,identifier)) {
 
 			}
 
-			for( int i=0; i<cln->constant_expressions.size(); ++i ) {
+			if (p_parsing_constant) {
+				for( int i=0; i<cln->constant_expressions.size(); ++i ) {
 
-				if( cln->constant_expressions[i].identifier == identifier ) {
+					if( cln->constant_expressions[i].identifier == identifier ) {
 
-					expr = cln->constant_expressions[i].expression;
-					bfn  = true;
-					break;
+						expr = cln->constant_expressions[i].expression;
+						bfn  = true;
+						break;
+					}
+				}
+
+				if (GDScriptLanguage::get_singleton()->get_global_map().has(identifier)) {
+					//check from constants
+					ConstantNode *constant = alloc_node<ConstantNode>();
+					constant->value = GDScriptLanguage::get_singleton()->get_global_array()[ GDScriptLanguage::get_singleton()->get_global_map()[identifier] ];
+					expr=constant;
+					bfn = true;
 				}
 			}
 
@@ -503,8 +514,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 		} else if (/*tokenizer->get_token()==GDTokenizer::TK_OP_ADD ||*/ tokenizer->get_token()==GDTokenizer::TK_OP_SUB || tokenizer->get_token()==GDTokenizer::TK_OP_NOT || tokenizer->get_token()==GDTokenizer::TK_OP_BIT_INVERT) {
 
 			//single prefix operators like !expr -expr ++expr --expr
-			OperatorNode *op = alloc_node<OperatorNode>();
-
+			alloc_node<OperatorNode>();
 			Expression e;
 			e.is_op=true;
 
@@ -567,7 +577,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 						_set_error("',' or ']' expected");
 						return NULL;
 					}
-					Node *n = _parse_expression(arr,p_static);
+					Node *n = _parse_expression(arr,p_static,p_allow_assign,p_parsing_constant);
 					if (!n)
 						return NULL;
 					arr->elements.push_back(n);
@@ -674,7 +684,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 							expecting=DICT_EXPECT_VALUE;
 						} else {
 							//python/js style more flexible
-							key = _parse_expression(dict,p_static);
+							key = _parse_expression(dict,p_static,p_allow_assign,p_parsing_constant);
 							if (!key)
 								return NULL;
 							expecting=DICT_EXPECT_COLON;
@@ -682,7 +692,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 					}
 
 					if (expecting==DICT_EXPECT_VALUE) {
-						Node *value = _parse_expression(dict,p_static);
+						Node *value = _parse_expression(dict,p_static,p_allow_assign,p_parsing_constant);
 						if (!value)
 							return NULL;
 						expecting=DICT_EXPECT_COMMA;
@@ -833,7 +843,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 
 				tokenizer->advance(1);
 
-				Node *subexpr = _parse_expression(op,p_static);
+				Node *subexpr = _parse_expression(op,p_static,p_allow_assign,p_parsing_constant);
 				if (!subexpr) {
 					return NULL;
 				}
@@ -1069,8 +1079,8 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 				// can be followed by an unary op in a valid combination,
 				// due to how precedence works, unaries will always dissapear first
 
-				_set_error("Parser bug..");
-
+				_set_error("Unexpected two consecutive operators.");
+				return NULL;
 			}
 
 
@@ -1432,7 +1442,7 @@ GDParser::Node* GDParser::_reduce_expression(Node *p_node,bool p_to_const) {
 
 GDParser::Node* GDParser::_parse_and_reduce_expression(Node *p_parent,bool p_static,bool p_reduce_const,bool p_allow_assign) {
 
-	Node* expr=_parse_expression(p_parent,p_static,p_allow_assign);
+	Node* expr=_parse_expression(p_parent,p_static,p_allow_assign,p_reduce_const);
 	if (!expr || error_set)
 		return NULL;
 	expr = _reduce_expression(expr,p_reduce_const);
@@ -1526,6 +1536,10 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 					return;
 				}
 				tokenizer->advance();
+				if(tokenizer->get_token()==GDTokenizer::TK_SEMICOLON) {
+					// Ignore semicolon after 'pass'
+					tokenizer->advance();
+				}
 			} break;
 			case GDTokenizer::TK_PR_VAR: {
 				//variale declaration and (eventual) initialization

@@ -1206,7 +1206,6 @@ void Node::add_to_group(const StringName& p_identifier,bool p_persistent) {
 
 	GroupData gd;
 
-	SceneTree::Group *gptr=NULL;
 	if (data.tree) {
 		gd.group=data.tree->add_to_group(p_identifier,this);
 	} else {
@@ -1513,7 +1512,7 @@ int Node::get_position_in_parent() const {
 
 
 
-Node *Node::duplicate(bool p_use_instancing) const {
+Node *Node::_duplicate(bool p_use_instancing) const {
 
 
 	Node *node=NULL;
@@ -1592,7 +1591,19 @@ Node *Node::duplicate(bool p_use_instancing) const {
 		node->add_child(dup);
 	}
 
+
 	return node;
+}
+
+Node *Node::duplicate(bool p_use_instancing) const {
+
+	Node* dupe = _duplicate(p_use_instancing);
+
+	if (dupe) {
+		_duplicate_signals(this,dupe);
+	}
+
+	return dupe;
 }
 
 
@@ -1664,11 +1675,12 @@ void Node::_duplicate_and_reown(Node* p_new_parent, const Map<Node*,Node*>& p_re
 
 void Node::_duplicate_signals(const Node* p_original,Node* p_copy) const {
 
-	if (this!=p_original && get_owner()!=p_original)
+	if (this!=p_original && (get_owner()!=p_original && get_owner()!=p_original->get_owner()))
 		return;
 
 	List<Connection> conns;
 	get_all_signal_connections(&conns);
+
 
 	for (List<Connection>::Element *E=conns.front();E;E=E->next()) {
 
@@ -1678,14 +1690,17 @@ void Node::_duplicate_signals(const Node* p_original,Node* p_copy) const {
 			Node *copy = p_copy->get_node(p);
 
 			Node *target = E->get().target->cast_to<Node>();
-			if (!target)
+			if (!target) {
 				continue;
+			}
 			NodePath ptarget = p_original->get_path_to(target);
 			Node *copytarget = p_copy->get_node(ptarget);
+
 
 			if (copy && copytarget) {
 				copy->connect(E->get().signal,copytarget,E->get().method,E->get().binds,CONNECT_PERSIST);
 			}
+
 		}
 	}
 
@@ -2081,6 +2096,19 @@ void Node::update_configuration_warning() {
 
 }
 
+bool Node::is_owned_by_parent() const {
+	return data.parent_owned;
+}
+
+void Node::set_display_folded(bool p_folded) {
+	data.display_folded=p_folded;
+}
+
+bool Node::is_displayed_folded() const {
+
+	return data.display_folded;
+}
+
 void Node::_bind_methods() {
 
 	ObjectTypeDB::bind_method(_MD("_add_child_below_node","node:Node","child_node:Node","legible_unique_name"),&Node::add_child_below_node,DEFVAL(false));
@@ -2136,6 +2164,8 @@ void Node::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("can_process"),&Node::can_process);
 	ObjectTypeDB::bind_method(_MD("print_stray_nodes"),&Node::_print_stray_nodes);
 	ObjectTypeDB::bind_method(_MD("get_position_in_parent"),&Node::get_position_in_parent);
+	ObjectTypeDB::bind_method(_MD("set_display_folded","fold"),&Node::set_display_folded);
+	ObjectTypeDB::bind_method(_MD("is_displayed_folded"),&Node::is_displayed_folded);
 
 	ObjectTypeDB::bind_method(_MD("get_tree:SceneTree"),&Node::get_tree);
 
@@ -2190,6 +2220,7 @@ void Node::_bind_methods() {
 	//ADD_PROPERTYNZ( PropertyInfo( Variant::BOOL, "process/input" ), _SCS("set_process_input"),_SCS("is_processing_input" ) );
 	//ADD_PROPERTYNZ( PropertyInfo( Variant::BOOL, "process/unhandled_input" ), _SCS("set_process_unhandled_input"),_SCS("is_processing_unhandled_input" ) );
 	ADD_PROPERTYNZ( PropertyInfo( Variant::INT, "process/pause_mode",PROPERTY_HINT_ENUM,"Inherit,Stop,Process" ), _SCS("set_pause_mode"),_SCS("get_pause_mode" ) );
+	ADD_PROPERTYNZ( PropertyInfo( Variant::BOOL, "editor/display_folded",PROPERTY_HINT_NONE,"",PROPERTY_USAGE_NOEDITOR ), _SCS("set_display_folded"),_SCS("is_displayed_folded" ) );
 
 	BIND_VMETHOD( MethodInfo("_process",PropertyInfo(Variant::REAL,"delta")) );
 	BIND_VMETHOD( MethodInfo("_fixed_process",PropertyInfo(Variant::REAL,"delta")) );
@@ -2227,6 +2258,7 @@ Node::Node() {
 	data.in_constructor=true;
 	data.viewport=NULL;
 	data.use_placeholder=false;
+	data.display_folded=false;
 }
 
 Node::~Node() {
@@ -2235,6 +2267,7 @@ Node::~Node() {
 	data.grouped.clear();
 	data.owned.clear();
 	data.children.clear();
+
 
 	ERR_FAIL_COND(data.parent);
 	ERR_FAIL_COND(data.children.size());

@@ -227,11 +227,12 @@ void EditorAssetLibraryItemDescription::_preview_click(int p_id) {
 	}
 }
 
-void EditorAssetLibraryItemDescription::configure(const String& p_title,int p_asset_id,const String& p_category,int p_category_id,const String& p_author,int p_author_id,int p_rating,const String& p_cost,int p_version,const String& p_version_string,const String& p_description,const String& p_download_url,const String& p_browse_url) {
+void EditorAssetLibraryItemDescription::configure(const String& p_title,int p_asset_id,const String& p_category,int p_category_id,const String& p_author,int p_author_id,int p_rating,const String& p_cost,int p_version,const String& p_version_string,const String& p_description,const String& p_download_url,const String& p_browse_url,const String& p_sha256_hash) {
 
 	asset_id=p_asset_id;
 	title=p_title;
 	download_url=p_download_url;
+	sha256=p_sha256_hash;
 	item->configure(p_title,p_asset_id,p_category,p_category_id,p_author,p_author_id,p_rating,p_cost);
 	description->clear();
 	description->add_text("Version: "+p_version_string+"\n");
@@ -358,9 +359,12 @@ void EditorAssetLibraryItemDownload::_http_download_completed(int p_status, int 
 			if (p_code!=200) {
 				error_text=("Request failed, return code: "+itos(p_code));
 				status->set_text("Failed: "+itos(p_code));
-			} else {
-
-				//all good
+			} else if(sha256 != "") {
+				String download_sha256 = FileAccess::get_sha256(download->get_download_file());
+				if(sha256 != download_sha256) {
+					error_text="Bad download hash, assuming file has been tampered with.\nExpected: " + sha256 + "\nGot: " + download_sha256;
+					status->set_text("Failed sha256 hash check");
+				}
 			}
 		} break;
 
@@ -384,15 +388,15 @@ void EditorAssetLibraryItemDownload::_http_download_completed(int p_status, int 
 }
 
 
-void EditorAssetLibraryItemDownload::configure(const String& p_title,int p_asset_id,const Ref<Texture>& p_preview, const String& p_download_url) {
+void EditorAssetLibraryItemDownload::configure(const String& p_title,int p_asset_id,const Ref<Texture>& p_preview, const String& p_download_url, const String& p_sha256_hash) {
 
 	title->set_text(p_title);
 	icon->set_texture(p_preview);
 	asset_id=p_asset_id;
 	if (!p_preview.is_valid())
 		icon->set_texture(get_icon("GodotAssetDefault","EditorIcons"));
-
 	host=p_download_url;
+	sha256=p_sha256_hash;
 	asset_installer->connect("confirmed",this,"_close");
 	dismiss->set_normal_texture( get_icon("Close","EditorIcons"));
 	_make_request();
@@ -440,6 +444,13 @@ void EditorAssetLibraryItemDownload::_close() {
 void EditorAssetLibraryItemDownload::_install() {
 
 	String file = download->get_download_file();
+
+	if (external_install) {
+		emit_signal("install_asset",file,title->get_text());
+		return;
+	}
+
+
 	asset_installer->open(file,1);
 }
 
@@ -460,6 +471,8 @@ void EditorAssetLibraryItemDownload::_bind_methods() {
 	ObjectTypeDB::bind_method("_install",&EditorAssetLibraryItemDownload::_install);
 	ObjectTypeDB::bind_method("_close",&EditorAssetLibraryItemDownload::_close);
 	ObjectTypeDB::bind_method("_make_request",&EditorAssetLibraryItemDownload::_make_request);
+
+	ADD_SIGNAL(MethodInfo("install_asset",PropertyInfo(Variant::STRING,"zip_path"),PropertyInfo(Variant::STRING,"name")));
 
 }
 
@@ -525,6 +538,8 @@ EditorAssetLibraryItemDownload::EditorAssetLibraryItemDownload() {
 	add_child(asset_installer);
 
 	prev_status=-1;
+
+	external_install=false;
 
 
 }
@@ -596,7 +611,8 @@ void EditorAssetLibrary::_install_asset() {
 		EditorAssetLibraryItemDownload *d  = downloads_hb->get_child(i)->cast_to<EditorAssetLibraryItemDownload>();
 		if (d && d->get_asset_id() == description->get_asset_id()) {
 
-			EditorNode::get_singleton()->show_warning("Download for this asset is already in progress!");
+			if (EditorNode::get_singleton() != NULL)
+				EditorNode::get_singleton()->show_warning("Download for this asset is already in progress!");
 			return;
 		}
 	}
@@ -604,7 +620,12 @@ void EditorAssetLibrary::_install_asset() {
 
 	EditorAssetLibraryItemDownload * download = memnew( EditorAssetLibraryItemDownload );
 	downloads_hb->add_child(download);
-	download->configure(description->get_title(),description->get_asset_id(),description->get_preview_icon(),description->get_download_url());
+	download->configure(description->get_title(),description->get_asset_id(),description->get_preview_icon(),description->get_download_url(),description->get_sha256());
+
+	if (templates_only) {
+		download->set_external_install(true);
+		download->connect("install_asset",this,"_install_external_asset");
+	}
 
 }
 
@@ -622,6 +643,12 @@ const char* EditorAssetLibrary::sort_text[SORT_MAX]={
 	"Name",
 	"Cost",
 	"Updated"
+};
+
+const char* EditorAssetLibrary::support_key[SUPPORT_MAX]={
+	"official",
+	"community",
+	"testing"
 };
 
 
@@ -832,14 +859,43 @@ void EditorAssetLibrary::_request_image(ObjectID p_for,String p_image_url,ImageT
 void EditorAssetLibrary::_repository_changed(int p_repository_id) {
 	host=repository->get_item_metadata(p_repository_id);
 	print_line(".." + host);
-	_api_request("configure", REQUESTING_CONFIG);
+	if(templates_only) {
+		_api_request("configure", REQUESTING_CONFIG, "?type=project");
+	} else {
+		_api_request("configure", REQUESTING_CONFIG);
+	}
+}
+
+void EditorAssetLibrary::_support_toggled(int p_support) {
+	support->get_popup()->set_item_checked(p_support, !support->get_popup()->is_item_checked(p_support));
+	_search();
+}
+
+void EditorAssetLibrary::_rerun_search(int p_ignore) {
+	_search();
 }
 
 void EditorAssetLibrary::_search(int p_page) {
 
 	String args;
 
-	args=String()+"?sort="+sort_key[sort->get_selected()];
+	if(templates_only) {
+		args += "?type=project&";
+	} else {
+		args += "?";
+	}
+	args+=String()+"sort="+sort_key[sort->get_selected()];
+
+	
+	String support_list;
+	for(int i = 0; i < SUPPORT_MAX; i++) {
+		if(support->get_popup()->is_item_checked(i)) {
+			support_list += String(support_key[i]) + "+";
+		}
+	}
+	if(support_list != String()) {
+		args += "&support=" + support_list.substr(0, support_list.length() - 1);
+	}
 
 	if (categories->get_selected()>0) {
 
@@ -1134,6 +1190,7 @@ void EditorAssetLibrary::_http_request_completed(int p_status, int p_code, const
 			ERR_FAIL_COND(!r.has("cost"));
 			ERR_FAIL_COND(!r.has("description"));
 			ERR_FAIL_COND(!r.has("download_url"));
+			ERR_FAIL_COND(!r.has("download_hash"));
 			ERR_FAIL_COND(!r.has("browse_url"));
 
 			if (description) {
@@ -1145,7 +1202,7 @@ void EditorAssetLibrary::_http_request_completed(int p_status, int p_code, const
 			description->popup_centered_minsize();
 			description->connect("confirmed",this,"_install_asset");
 
-			description->configure(r["title"],r["asset_id"],category_map[r["category_id"]],r["category_id"],r["author"],r["author_id"],r["rating"],r["cost"],r["version"],r["version_string"],r["description"],r["download_url"],r["browse_url"]);
+			description->configure(r["title"],r["asset_id"],category_map[r["category_id"]],r["category_id"],r["author"],r["author_id"],r["rating"],r["cost"],r["version"],r["version_string"],r["description"],r["download_url"],r["browse_url"], r["download_hash"]);
 			/*item->connect("asset_selected",this,"_select_asset");
 			item->connect("author_selected",this,"_select_author");
 			item->connect("category_selected",this,"_category_selected");*/
@@ -1218,6 +1275,11 @@ void EditorAssetLibrary::_manage_plugins() {
 
 
 
+void EditorAssetLibrary::_install_external_asset(String p_zip_path,String p_title) {
+
+	emit_signal("install_asset",p_zip_path,p_title);
+}
+
 void EditorAssetLibrary::_bind_methods() {
 
 	ObjectTypeDB::bind_method("_http_request_completed",&EditorAssetLibrary::_http_request_completed);
@@ -1231,6 +1293,13 @@ void EditorAssetLibrary::_bind_methods() {
 	ObjectTypeDB::bind_method("_asset_open",&EditorAssetLibrary::_asset_open);
 	ObjectTypeDB::bind_method("_asset_file_selected",&EditorAssetLibrary::_asset_file_selected);
 	ObjectTypeDB::bind_method("_repository_changed",&EditorAssetLibrary::_repository_changed);
+	ObjectTypeDB::bind_method("_support_toggled",&EditorAssetLibrary::_support_toggled);
+	ObjectTypeDB::bind_method("_rerun_search",&EditorAssetLibrary::_rerun_search);
+	ObjectTypeDB::bind_method("_install_external_asset",&EditorAssetLibrary::_install_external_asset);
+
+
+
+	ADD_SIGNAL(MethodInfo("install_asset",PropertyInfo(Variant::STRING,"zip_path"),PropertyInfo(Variant::STRING,"name")));
 
 }
 
@@ -1298,9 +1367,11 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	search_hb2->add_child(sort);
 
 	sort->set_h_size_flags(SIZE_EXPAND_FILL);
+	sort->connect("item_selected", this, "_rerun_search");
 
 	reverse = memnew( ToolButton );
 	reverse->set_toggle_mode(true);
+	reverse->connect("toggled", this, "_rerun_search");
 	//reverse->set_text(TTR("Reverse"));
 	search_hb2->add_child(reverse);
 
@@ -1314,6 +1385,7 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	search_hb2->add_child(categories);
 	categories->set_h_size_flags(SIZE_EXPAND_FILL);
 	//search_hb2->add_spacer();
+	categories->connect("item_selected", this, "_rerun_search");
 
 	search_hb2->add_child(memnew(VSeparator));
 
@@ -1321,7 +1393,7 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	repository = memnew( OptionButton );
 
 	repository->add_item("Godot");
-	repository->set_item_metadata(0, "http://godotengine.org/asset-library/api");
+	repository->set_item_metadata(0, "https://godotengine.org/asset-library/api");
 	repository->add_item("Localhost"); // TODO: Maybe remove?
 	repository->set_item_metadata(1, "http://127.0.0.1/asset-library/api");
 	repository->connect("item_selected",this,"_repository_changed");
@@ -1340,6 +1412,7 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	support->get_popup()->add_check_item(TTR("Testing"),SUPPORT_TESTING);
 	support->get_popup()->set_item_checked(SUPPORT_OFFICIAL,true);
 	support->get_popup()->set_item_checked(SUPPORT_COMMUNITY,true);
+	support->get_popup()->connect("item_pressed",this,"_support_toggled");
 
 	/////////
 

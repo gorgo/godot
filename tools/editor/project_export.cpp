@@ -36,7 +36,6 @@
 #include "io/resource_saver.h"
 #include "os/os.h"
 #include "scene/gui/box_container.h"
-#include "default_saver.h"
 
 #include "scene/gui/tab_container.h"
 #include "scene/gui/scroll_container.h"
@@ -432,7 +431,6 @@ void ProjectExportDialog::_validate_platform() {
 
 void ProjectExportDialog::_export_mode_changed(int p_idx) {
 
-	bool do_all = p_idx==0;
 	if (EditorImportExport::get_singleton()->get_export_filter()==p_idx)
 		return;
 	EditorImportExport::get_singleton()->set_export_filter(EditorImportExport::ExportFilter(p_idx));

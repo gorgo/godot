@@ -460,7 +460,6 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 
 						const GDParser::Node *instance = on->arguments[0];
 
-						bool in_static=false;
 						if (instance->type==GDParser::Node::TYPE_SELF) {
 							//room for optimization
 
@@ -550,17 +549,25 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 
 					int index;
 					if (named) {
-#ifdef DEBUG_ENABLED
 						if (on->arguments[0]->type==GDParser::Node::TYPE_SELF && codegen.script && codegen.function_node && !codegen.function_node->_static) {
 
-							const Map<StringName,GDScript::MemberInfo>::Element *MI = codegen.script->member_indices.find(static_cast<GDParser::IdentifierNode*>(on->arguments[1])->name);
+							GDParser::IdentifierNode* identifier = static_cast<GDParser::IdentifierNode*>(on->arguments[1]);
+							const Map<StringName,GDScript::MemberInfo>::Element *MI = codegen.script->member_indices.find(identifier->name);
+
+#ifdef DEBUG_ENABLED
 							if (MI && MI->get().getter==codegen.function_node->name) {
 								String n = static_cast<GDParser::IdentifierNode*>(on->arguments[1])->name;
 								_set_error("Must use '"+n+"' instead of 'self."+n+"' in getter.",on);
 								return -1;
 							}
-						}
 #endif
+
+							if (MI && MI->get().getter=="") {
+								// Faster than indexing self (as if no self. had been used)
+								return (MI->get().index)|(GDFunction::ADDR_TYPE_MEMBER<<GDFunction::ADDR_BITS);
+							}
+						}
+
 						index=codegen.get_name_map_pos(static_cast<GDParser::IdentifierNode*>(on->arguments[1])->name);
 
 					} else {
@@ -763,8 +770,6 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 
 						Vector<int> setchain;
 
-						int prev_key_idx=-1;
-
 						for(List<GDParser::OperatorNode*>::Element *E=chain.back();E;E=E->prev()) {
 
 
@@ -814,7 +819,6 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 							setchain.push_back(named ? GDFunction::OPCODE_SET_NAMED : GDFunction::OPCODE_SET);
 
 							prev_pos=dst_pos;
-							prev_key_idx=key_idx;
 
 						}
 
@@ -1203,7 +1207,6 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 
 	if (p_func) {
 		for(int i=0;i<p_func->arguments.size();i++) {
-			int idx = i;
 			codegen.add_stack_identifier(p_func->arguments[i],i);
 #ifdef TOOLS_ENABLED
 			argnames.push_back(p_func->arguments[i]);
@@ -1441,7 +1444,6 @@ Error GDCompiler::_parse_class(GDScript *p_script, GDScript *p_owner, const GDPa
 	p_script->name=p_class->name;
 
 
-	int index_from=0;
 	Ref<GDNativeClass> native;
 
 	if (p_class->extends_used) {
@@ -1497,7 +1499,8 @@ Error GDCompiler::_parse_class(GDScript *p_script, GDScript *p_owner, const GDPa
 					String sub = p_class->extends_class[i];
 					if (script->subclasses.has(sub)) {
 
-						script=script->subclasses[sub];
+						Ref<Script> subclass = script->subclasses[sub]; //avoid reference from dissapearing
+						script=subclass;
 					} else {
 
 						_set_error("Could not find subclass: "+sub,p_class);
@@ -1682,6 +1685,7 @@ Error GDCompiler::_parse_class(GDScript *p_script, GDScript *p_owner, const GDPa
 		Error err = _parse_class(subclass.ptr(),p_script,p_class->subclasses[i],p_keep_state);
 		if (err)
 			return err;
+
 
 		p_script->constants.insert(name,subclass); //once parsed, goes to the list of constants
 		p_script->subclasses.insert(name,subclass);

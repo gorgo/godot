@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  editor_file_dialog.cpp                                               */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "editor_file_dialog.h"
 #include "scene/gui/label.h"
 #include "scene/gui/center_container.h"
@@ -70,35 +98,64 @@ void EditorFileDialog::_unhandled_input(const InputEvent& p_event) {
 
 	if (p_event.type==InputEvent::KEY && is_window_modal_on_top()) {
 
-		const InputEventKey &k=p_event.key;
+		if (p_event.key.pressed) {
 
-		if (k.pressed) {
+			bool handled=false;
 
-			bool handled=true;
-
-			switch (k.scancode) {
-
-				case KEY_H: {
-
-					if (k.mod.command) {
-
-						bool show=!show_hidden_files;
-						set_show_hidden_files(show);
-						EditorSettings::get_singleton()->set("file_dialog/show_hidden_files",show);
-					} else {
-						handled=false;
-					}
-
-				} break;
-				case KEY_F5: {
-
-					invalidate();
-				} break;
-				default: { handled=false; }
+			if (ED_IS_SHORTCUT("file_dialog/go_back", p_event)) {
+				_go_back();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/go_forward", p_event)) {
+				_go_forward();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/go_up", p_event)) {
+				_go_up();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/refresh", p_event)) {
+				invalidate();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/toggle_hidden_files", p_event)) {
+				bool show=!show_hidden_files;
+				set_show_hidden_files(show);
+				EditorSettings::get_singleton()->set("file_dialog/show_hidden_files",show);
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/toggle_favorite", p_event)) {
+				_favorite_toggled(favorite->is_pressed());
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/toggle_mode", p_event)) {
+				if (mode_thumbnails->is_pressed()) {
+					set_display_mode(DISPLAY_LIST);
+				} else {
+					set_display_mode(DISPLAY_THUMBNAILS);
+				}
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/create_folder", p_event)) {
+				_make_dir();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/focus_path", p_event)) {
+				dir->grab_focus();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/move_favorite_up", p_event)) {
+				_favorite_move_up();
+				handled=true;
+			}
+			if (ED_IS_SHORTCUT("file_dialog/move_favorite_down", p_event)) {
+				_favorite_move_down();
+				handled=true;
 			}
 
-			if (handled)
+			if (handled) {
 				accept_event();
+			}
 		}
 	}
 }
@@ -352,7 +409,7 @@ void EditorFileDialog::_action_pressed() {
 
 		}
 
-		if (dir_access->file_exists(f)) {
+		if (dir_access->file_exists(f) && !disable_overwrite_warning) {
 			confirm_save->set_text(TTR("File Exists, Overwrite?"));
 			confirm_save->popup_centered(Size2(200,80));
 		} else {
@@ -409,10 +466,7 @@ void EditorFileDialog::_item_dc_selected(int p_item) {
 
 	if (d["dir"]) {
 
-		//print_line("change dir: "+String(d["name"]));
 		dir_access->change_dir(d["name"]);
-		if (mode==MODE_OPEN_FILE || mode==MODE_OPEN_FILES || mode==MODE_OPEN_DIR || MODE_OPEN_ANY)
-			file->set_text("");
 		call_deferred("_update_file_list");
 		call_deferred("_update_dir");
 
@@ -506,6 +560,11 @@ void EditorFileDialog::update_file_list() {
 			else if (item!=".." || !skip_pp)
 				dirs.push_back(item);
 		}
+	}
+
+	if (dirs.find("..")==NULL) {
+		//may happen if lacking permissions
+		dirs.push_back("..");
 	}
 
 	dirs.sort_custom<NoCaseComparator>();
@@ -1129,6 +1188,8 @@ void EditorFileDialog::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("set_display_mode","mode"),&EditorFileDialog::set_display_mode);
 	ObjectTypeDB::bind_method(_MD("get_display_mode"),&EditorFileDialog::get_display_mode);
 	ObjectTypeDB::bind_method(_MD("_thumbnail_result"),&EditorFileDialog::_thumbnail_result);
+	ObjectTypeDB::bind_method(_MD("set_disable_overwrite_warning","disable"),&EditorFileDialog::set_disable_overwrite_warning);
+	ObjectTypeDB::bind_method(_MD("is_overwrite_warning_disabled"),&EditorFileDialog::is_overwrite_warning_disabled);
 
 	ObjectTypeDB::bind_method(_MD("_recent_selected"),&EditorFileDialog::_recent_selected);
 	ObjectTypeDB::bind_method(_MD("_go_back"),&EditorFileDialog::_go_back);
@@ -1202,18 +1263,41 @@ void EditorFileDialog::_save_to_recent() {
 
 }
 
+void EditorFileDialog::set_disable_overwrite_warning(bool p_disable) {
+
+	disable_overwrite_warning=p_disable;
+}
+
+bool EditorFileDialog::is_overwrite_warning_disabled() const{
+
+	return disable_overwrite_warning;
+}
+
+
 EditorFileDialog::EditorFileDialog() {
 
 	show_hidden_files=default_show_hidden_files;
 	display_mode=default_display_mode;
 	local_history_pos=0;
-
+	disable_overwrite_warning=false;
 	VBoxContainer *vbc = memnew( VBoxContainer );
 	add_child(vbc);
 	set_child_rect(vbc);
 
 	mode=MODE_SAVE_FILE;
 	set_title(TTR("Save a File"));
+
+	ED_SHORTCUT("file_dialog/go_back", TTR("Go Back"), KEY_MASK_ALT|KEY_LEFT);
+	ED_SHORTCUT("file_dialog/go_forward", TTR("Go Forward"), KEY_MASK_ALT|KEY_RIGHT);
+	ED_SHORTCUT("file_dialog/go_up", TTR("Go Up"), KEY_MASK_ALT|KEY_UP);
+	ED_SHORTCUT("file_dialog/refresh", TTR("Refresh"), KEY_F5);
+	ED_SHORTCUT("file_dialog/toggle_hidden_files", TTR("Toggle Hidden Files"), KEY_MASK_CMD|KEY_H);
+	ED_SHORTCUT("file_dialog/toggle_favorite", TTR("Toggle Favorite"), KEY_MASK_ALT|KEY_F);
+	ED_SHORTCUT("file_dialog/toggle_mode", TTR("Toggle Mode"), KEY_MASK_ALT|KEY_V);
+	ED_SHORTCUT("file_dialog/create_folder", TTR("Create Folder"), KEY_MASK_CMD|KEY_N);
+	ED_SHORTCUT("file_dialog/focus_path", TTR("Focus Path"), KEY_MASK_CMD|KEY_D);
+	ED_SHORTCUT("file_dialog/move_favorite_up", TTR("Move Favorite Up"), KEY_MASK_CMD|KEY_UP);
+	ED_SHORTCUT("file_dialog/move_favorite_down", TTR("Move Favorite Down"), KEY_MASK_CMD|KEY_DOWN);
 
 	HBoxContainer *pathhb = memnew( HBoxContainer );
 
@@ -1432,5 +1516,6 @@ EditorLineEditFileChooser::EditorLineEditFileChooser() {
 	dialog->connect("file_selected",this,"_chosen");
 	dialog->connect("dir_selected",this,"_chosen");
 	dialog->connect("files_selected",this,"_chosen");
+
 
 }

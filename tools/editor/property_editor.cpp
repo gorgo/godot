@@ -389,7 +389,6 @@ bool CustomPropertyEditor::edit(Object* p_owner,const String& p_name,Variant::Ty
 				List<String> names;
 				names.push_back("value:");
 				config_value_editors(1,1,50,names);
-				Vector3 vec=v;
 				value_editor[0]->set_text( String::num(v) );
 			}
 
@@ -436,7 +435,6 @@ bool CustomPropertyEditor::edit(Object* p_owner,const String& p_name,Variant::Ty
 				List<String> names;
 				names.push_back("string:");
 				config_value_editors(1,1,50,names);
-				Vector3 vec=v;
 				value_editor[0]->set_text( v );
 			}
 
@@ -612,6 +610,7 @@ bool CustomPropertyEditor::edit(Object* p_owner,const String& p_name,Variant::Ty
 			color_picker->set_edit_alpha(hint!=PROPERTY_HINT_COLOR_NO_ALPHA);
 			color_picker->set_color(v);
 			set_size( Size2(300*EDSCALE, color_picker->get_combined_minimum_size().height+10*EDSCALE));
+			color_picker->set_focus_on_line_edit();
 			/*
 			int ofs=80;
 			int m=10;
@@ -2142,6 +2141,7 @@ void PropertyEditor::set_item_text(TreeItem *p_item, int p_type, const String& p
 
 			if (obj->get( p_name ).get_type() == Variant::NIL || obj->get( p_name ).operator RefPtr().is_null()) {
 				p_item->set_text(1,"<null>");
+				p_item->set_icon(1,Ref<Texture>());
 
 				Dictionary d = p_item->get_metadata(0);
 				int hint=d.has("hint")?d["hint"].operator int():-1;
@@ -2979,10 +2979,8 @@ void PropertyEditor::update_tree() {
 				else
 					item->set_cell_mode( 1, TreeItem::CELL_MODE_RANGE_EXPRESSION );
 
-				if (p.hint==PROPERTY_HINT_SPRITE_FRAME) {
-					item->set_range_config(1,0,99999,1);
 
-				} else if (p.hint==PROPERTY_HINT_RANGE || p.hint==PROPERTY_HINT_EXP_RANGE) {
+				if (p.hint==PROPERTY_HINT_SPRITE_FRAME || p.hint==PROPERTY_HINT_RANGE || p.hint==PROPERTY_HINT_EXP_RANGE) {
 
 					int c = p.hint_string.get_slice_count(",");
 					float min=0,max=100,step=1;
@@ -3345,10 +3343,10 @@ void PropertyEditor::update_tree() {
 				String type;
 				if (p.hint==PROPERTY_HINT_RESOURCE_TYPE)
 					type=p.hint_string;
-				bool notnil=false;
 
 				if (obj->get( p.name ).get_type() == Variant::NIL || obj->get( p.name ).operator RefPtr().is_null()) {
 					item->set_text(1,"<null>");
+					item->set_icon(1,Ref<Texture>());
 
 				} else {
 					RES res = obj->get( p.name ).operator RefPtr();
@@ -3367,8 +3365,7 @@ void PropertyEditor::update_tree() {
 
 					} else {
 						item->set_text(1,"<"+res->get_type()+">");
-					};
-					notnil=true;
+					}
 
 					if (has_icon(res->get_type(),"EditorIcons")) {
 						type=res->get_type();
@@ -3934,6 +3931,7 @@ void PropertyEditor::_bind_methods() {
 	ObjectTypeDB::bind_method( "_filter_changed",&PropertyEditor::_filter_changed);
 	ObjectTypeDB::bind_method( "update_tree",&PropertyEditor::update_tree);
 	ObjectTypeDB::bind_method( "_resource_preview_done",&PropertyEditor::_resource_preview_done);
+	ObjectTypeDB::bind_method( "refresh",&PropertyEditor::refresh);
 
 	ObjectTypeDB::bind_method(_MD("get_drag_data_fw"), &PropertyEditor::get_drag_data_fw);
 	ObjectTypeDB::bind_method(_MD("can_drop_data_fw"), &PropertyEditor::can_drop_data_fw);
@@ -4189,6 +4187,8 @@ public:
 void SectionedPropertyEditor::_bind_methods() {
 
 	ObjectTypeDB::bind_method("_section_selected",&SectionedPropertyEditor::_section_selected);
+
+	ObjectTypeDB::bind_method("update_category_list", &SectionedPropertyEditor::update_category_list);
 }
 
 void SectionedPropertyEditor::_section_selected(int p_which) {

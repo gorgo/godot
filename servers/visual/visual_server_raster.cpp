@@ -4448,12 +4448,13 @@ void VisualServerRaster::cursor_set_rotation(float p_rotation, int p_cursor) {
 	cursors[p_cursor].rot = p_rotation;
 };
 
-void VisualServerRaster::cursor_set_texture(RID p_texture, const Point2 &p_center_offset, int p_cursor) {
+void VisualServerRaster::cursor_set_texture(RID p_texture, const Point2 &p_center_offset, int p_cursor, const Rect2 &p_region) {
 	VS_CHANGED;
 	ERR_FAIL_INDEX(p_cursor, MAX_CURSORS);
 
 	cursors[p_cursor].texture = p_texture;
 	cursors[p_cursor].center = p_center_offset;
+	cursors[p_cursor].region = p_region;
 };
 
 void VisualServerRaster::cursor_set_visible(bool p_visible, int p_cursor) {
@@ -4843,11 +4844,6 @@ void VisualServerRaster::_instance_draw(Instance *p_instance) {
 	switch(p_instance->base_type) {
 
 		case INSTANCE_MESH: {
-			const float *morphs = NULL;
-			if (!p_instance->data.morph_values.empty()) {
-				morphs=&p_instance->data.morph_values[0];
-			}
-
 			rasterizer->add_mesh(p_instance->base_rid, &p_instance->data);
 		} break;
 		case INSTANCE_MULTIMESH: {
@@ -5227,8 +5223,6 @@ void VisualServerRaster::_light_instance_update_lispsm_shadow(Instance *p_light,
 
 	Vector3 light_vec = -p_light->data.transform.basis.get_axis(2);
 	Vector3 view_vec = -p_camera->transform.basis.get_axis(2);
-	float viewdot = light_vec.normalized().dot(view_vec.normalized());
-
 
 	float near_dist=1;
 
@@ -6466,7 +6460,6 @@ void VisualServerRaster::_render_no_camera(Viewport *p_viewport,Camera *p_camera
 void VisualServerRaster::_render_camera(Viewport *p_viewport,Camera *p_camera, Scenario *p_scenario) {
 
 
-	uint64_t t = OS::get_singleton()->get_ticks_usec();
 	render_pass++;
 	uint32_t camera_layer_mask=p_camera->visible_layers;
 
@@ -7538,8 +7531,13 @@ void VisualServerRaster::_draw_cursors_and_margins() {
 
 		RID tex = cursors[i].texture?cursors[i].texture:default_cursor_texture;
 		ERR_CONTINUE( !tex );
-		Point2 size(texture_get_width(tex), texture_get_height(tex));
-		rasterizer->canvas_draw_rect(Rect2(cursors[i].pos, size), 0, Rect2(), tex, Color(1, 1, 1, 1));
+		if (cursors[i].region.has_no_area()) {
+			Point2 size(texture_get_width(tex), texture_get_height(tex));
+			rasterizer->canvas_draw_rect(Rect2(cursors[i].pos, size), 0, Rect2(), tex, Color(1, 1, 1, 1));
+		} else {
+			Point2 size = cursors[i].region.size;
+			rasterizer->canvas_draw_rect(Rect2(cursors[i].pos, size), Rasterizer::CANVAS_RECT_REGION, cursors[i].region, tex, Color(1, 1, 1, 1));
+		}
 	};
 
 

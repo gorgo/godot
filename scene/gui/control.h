@@ -132,6 +132,7 @@ private:
 		ObjectID drag_owner;
 		bool modal;
 		bool modal_exclusive;
+		uint64_t modal_frame; //frame used to put something as modal
 		Ref<Theme> theme;
 		Control *theme_owner;
 		String tooltip;
@@ -153,6 +154,8 @@ private:
 		HashMap<StringName, Ref<Font>, StringNameHasher > font_override;
 		HashMap<StringName, Color, StringNameHasher > color_override;
 		HashMap<StringName, int, StringNameHasher > constant_override;
+		Map< Ref<Font>, int> font_refcount;
+
 	} data;
 
 	// used internally
@@ -183,6 +186,11 @@ private:
 	// Deprecated, should be removed in a future version.
 	void _set_rotation_deg(float p_degrees);
 	float _get_rotation_deg() const;
+
+	void _ref_font(Ref<Font> p_sc);
+	void _unref_font( Ref<Font> p_sc);
+	void _font_changed();
+
 
 friend class Viewport;
 	void _modal_stack_remove();
@@ -242,6 +250,7 @@ public:
 	Size2 get_custom_minimum_size() const;
 
 	bool is_window_modal_on_top() const;
+	uint64_t get_modal_frame() const; //frame in which this was made modal
 
 	Control *get_parent_control() const;
 

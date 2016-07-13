@@ -136,6 +136,9 @@ public:
 
 	struct CallState {
 
+		ObjectID instance_id; //by debug only
+		ObjectID script_id;
+
 		GDInstance *instance;
 		Vector<uint8_t> stack;
 		int stack_size;
@@ -160,6 +163,7 @@ public:
 	int get_default_argument_count() const;
 	int get_default_argument_addr(int p_idx) const;
 	GDScript *get_script() const { return _script; }
+	StringName get_source() const { return source; }
 
 	void debug_get_stack_member_state(int p_line,List<Pair<StringName,int> > *r_stackvars) const;
 

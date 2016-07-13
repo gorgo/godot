@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  editor_resource_preview.cpp                                          */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "editor_resource_preview.h"
 #include "editor_settings.h"
 #include "os/file_access.h"
@@ -5,6 +33,7 @@
 #include "io/resource_saver.h"
 #include "globals.h"
 #include "editor_scale.h"
+#include "message_queue.h"
 
 Ref<Texture> EditorResourcePreviewGenerator::generate_from_path(const String& p_path) {
 
@@ -38,25 +67,27 @@ void EditorResourcePreview::_preview_ready(const String& p_str,const Ref<Texture
 
 	String path = p_str;
 	uint32_t hash=0;
+	uint64_t modified_time=0;
 
 	if (p_str.begins_with("ID:")) {
 		hash=p_str.get_slicec(':',2).to_int();
 		path="ID:"+p_str.get_slicec(':',1);
+	} else {
+		modified_time = FileAccess::get_modified_time(path);
 	}
 
 	Item item;
 	item.order=order++;
 	item.preview=p_texture;
 	item.last_hash=hash;
+	item.modified_time=modified_time;
 
 	cache[path]=item;
 
-	Object *recv = ObjectDB::get_instance(id);
-	if (recv) {
-		recv->call_deferred(p_func,path,p_texture,p_ud);
-	}
-
 	preview_mutex->unlock();
+
+	MessageQueue::get_singleton()->push_call(id,p_func,path,p_texture,p_ud);
+
 }
 
 Ref<Texture> EditorResourcePreview::_generate_preview(const QueueItem& p_item,const String& cache_base) {
@@ -75,6 +106,7 @@ Ref<Texture> EditorResourcePreview::_generate_preview(const QueueItem& p_item,co
 	Ref<Texture> generated;
 
 	for(int i=0;i<preview_generators.size();i++) {
+
 		if (!preview_generators[i]->handles(type))
 			continue;
 		if (p_item.resource.is_valid()) {
@@ -125,98 +157,106 @@ void EditorResourcePreview::_thread() {
 
 			QueueItem item = queue.front()->get();
 			queue.pop_front();
-			preview_mutex->unlock();
-
-			Ref<Texture> texture;
-
-			//print_line("pop from queue "+item.path);
-
-			int thumbnail_size = EditorSettings::get_singleton()->get("file_dialog/thumbnail_size");
-			thumbnail_size*=EDSCALE;
 
 			if (cache.has(item.path)) {
 				//already has it because someone loaded it, just let it know it's ready
 				if (item.resource.is_valid()) {
 					item.path+=":"+itos(cache[item.path].last_hash); //keep last hash (see description of what this is in condition below)
 				}
-				call_deferred("_preview_ready",item.path,cache[item.path].preview,item.id,item.function,item.userdata);
 
-			} else if (item.resource.is_valid()){
+				_preview_ready(item.path,cache[item.path].preview,item.id,item.function,item.userdata);
 
-				texture=_generate_preview(item,String());
-				//adding hash to the end of path (should be ID:<objid>:<hash>) because of 5 argument limit to call_deferred
-				call_deferred("_preview_ready",item.path+":"+itos(item.resource->hash_edited_version()),texture,item.id,item.function,item.userdata);
-
+				preview_mutex->unlock();
 			} else {
+				preview_mutex->unlock();
 
 
-				String temp_path=EditorSettings::get_singleton()->get_settings_path().plus_file("tmp");
-				String cache_base = Globals::get_singleton()->globalize_path(item.path).md5_text();
-				cache_base = temp_path.plus_file("resthumb-"+cache_base);
+				Ref<Texture> texture;
 
-				//does not have it, try to load a cached thumbnail
+				//print_line("pop from queue "+item.path);
 
-				String file = cache_base+".txt";
-				//print_line("cachetxt at "+file);
-				FileAccess *f=FileAccess::open(file,FileAccess::READ);
-				if (!f) {
+				int thumbnail_size = EditorSettings::get_singleton()->get("file_dialog/thumbnail_size");
+				thumbnail_size*=EDSCALE;
 
-					//print_line("generate because not cached");
 
-					//generate
-					texture=_generate_preview(item,cache_base);
+				if (item.resource.is_valid()){
+
+					texture=_generate_preview(item,String());
+					//adding hash to the end of path (should be ID:<objid>:<hash>) because of 5 argument limit to call_deferred
+					_preview_ready(item.path+":"+itos(item.resource->hash_edited_version()),texture,item.id,item.function,item.userdata);
+
 				} else {
 
-					uint64_t modtime = FileAccess::get_modified_time(item.path);
-					int tsize = f->get_line().to_int64();
-					uint64_t last_modtime = f->get_line().to_int64();
 
-					bool cache_valid = true;
+					String temp_path=EditorSettings::get_singleton()->get_settings_path().plus_file("tmp");
+					String cache_base = Globals::get_singleton()->globalize_path(item.path).md5_text();
+					cache_base = temp_path.plus_file("resthumb-"+cache_base);
 
-					if (tsize!=thumbnail_size) {
-						cache_valid=false;
-						memdelete(f);
-					} else if (last_modtime!=modtime) {
+					//does not have it, try to load a cached thumbnail
 
-						String last_md5 = f->get_line();
-						String md5 = FileAccess::get_md5(item.path);
-						memdelete(f);
+					String file = cache_base+".txt";
+					//print_line("cachetxt at "+file);
+					FileAccess *f=FileAccess::open(file,FileAccess::READ);
+					if (!f) {
 
-						if (last_md5!=md5) {
+						//print_line("generate because not cached");
 
+						//generate
+						texture=_generate_preview(item,cache_base);
+					} else {
+
+						uint64_t modtime = FileAccess::get_modified_time(item.path);
+						int tsize = f->get_line().to_int64();
+						uint64_t last_modtime = f->get_line().to_int64();
+
+						bool cache_valid = true;
+
+						if (tsize!=thumbnail_size) {
 							cache_valid=false;
-						} else {
-							//update modified time
+							memdelete(f);
+						} else if (last_modtime!=modtime) {
 
-							f=FileAccess::open(file,FileAccess::WRITE);
-							f->store_line(itos(modtime));
-							f->store_line(md5);
+							String last_md5 = f->get_line();
+							String md5 = FileAccess::get_md5(item.path);
+							memdelete(f);
+
+							if (last_md5!=md5) {
+
+								cache_valid=false;
+							} else {
+								//update modified time
+
+								f=FileAccess::open(file,FileAccess::WRITE);
+								f->store_line(itos(modtime));
+								f->store_line(md5);
+								memdelete(f);
+							}
+						} else {
 							memdelete(f);
 						}
-					} else {
-						memdelete(f);
-					}
 
-					if (cache_valid) {
+						if (cache_valid) {
 
-						texture = ResourceLoader::load(cache_base+".png","ImageTexture",true);
-						if (!texture.is_valid()) {
-							//well fuck
-							cache_valid=false;
+							texture = ResourceLoader::load(cache_base+".png","ImageTexture",true);
+							if (!texture.is_valid()) {
+								//well fuck
+								cache_valid=false;
+							}
 						}
+
+						if (!cache_valid) {
+
+							texture=_generate_preview(item,cache_base);
+						}
+
 					}
 
-					if (!cache_valid) {
-
-						texture=_generate_preview(item,cache_base);
-					}
+					//print_line("notify of preview ready");
+					_preview_ready(item.path,texture,item.id,item.function,item.userdata);
 
 				}
-
-				//print_line("notify of preview ready");
-				call_deferred("_preview_ready",item.path,texture,item.id,item.function,item.userdata);
-
 			}
+
 
 		} else {
 			preview_mutex->unlock();
@@ -235,6 +275,8 @@ void EditorResourcePreview::queue_edited_resource_preview(const Ref<Resource>& p
 	preview_mutex->lock();
 
 	String path_id = "ID:"+itos(p_res->get_instance_ID());
+
+
 	if (cache.has(path_id) && cache[path_id].last_hash==p_res->hash_edited_version()) {
 
 		cache[path_id].order=order++;
@@ -243,6 +285,8 @@ void EditorResourcePreview::queue_edited_resource_preview(const Ref<Resource>& p
 		return;
 
 	}
+
+	cache.erase(path_id); //erase if exists, since it will be regen
 
 	//print_line("send to thread "+p_path);
 	QueueItem item;
@@ -294,6 +338,34 @@ EditorResourcePreview* EditorResourcePreview::get_singleton() {
 void EditorResourcePreview::_bind_methods() {
 
 	ObjectTypeDB::bind_method("_preview_ready",&EditorResourcePreview::_preview_ready);
+	ObjectTypeDB::bind_method(_MD("check_for_invalidation","path"),&EditorResourcePreview::check_for_invalidation);
+
+
+	ADD_SIGNAL(MethodInfo("preview_invalidated",PropertyInfo(Variant::STRING,"path")));
+}
+
+void EditorResourcePreview::check_for_invalidation(const String& p_path) {
+
+	preview_mutex->lock();
+
+	bool call_invalidated=false;
+	if (cache.has(p_path)) {
+
+		uint64_t modified_time = FileAccess::get_modified_time(p_path);
+		if (modified_time!=cache[p_path].modified_time) {
+			cache.erase(p_path);
+			call_invalidated=true;
+		}
+	}
+
+	preview_mutex->unlock();
+
+	if (call_invalidated) {//do outside mutex
+		call_deferred("emit_signal","preview_invalidated",p_path);
+	}
+
+
+
 }
 
 EditorResourcePreview::EditorResourcePreview() {

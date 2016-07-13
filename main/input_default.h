@@ -1,7 +1,36 @@
+/*************************************************************************/
+/*  input_default.h                                                      */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #ifndef INPUT_DEFAULT_H
 #define INPUT_DEFAULT_H
 
 #include "os/input.h"
+
 
 class InputDefault : public Input {
 
@@ -19,6 +48,16 @@ class InputDefault : public Input {
 	MainLoop *main_loop;
 
 	bool emulate_touch;
+
+	struct VibrationInfo {
+		float weak_magnitude;
+		float strong_magnitude;
+		float duration; // Duration in seconds
+		uint64_t timestamp;
+	};
+
+	Map<int, VibrationInfo> joy_vibration;
+
 	struct SpeedTrack {
 
 		uint64_t last_tick;
@@ -36,6 +75,7 @@ class InputDefault : public Input {
 	struct Joystick {
 		StringName name;
 		StringName uid;
+		bool connected;
 		bool last_buttons[JOY_BUTTON_MAX + 19]; //apparently SDL specifies 35 possible buttons on android
 		float last_axis[JOY_AXIS_MAX];
 		float filter;
@@ -54,6 +94,7 @@ class InputDefault : public Input {
 
 				last_buttons[i] = false;
 			}
+			connected = false;
 			last_hat = HAT_MASK_CENTER;
 			filter = 0.01f;
 			mapping = -1;
@@ -129,6 +170,10 @@ public:
 
 	virtual float get_joy_axis(int p_device,int p_axis);
 	String get_joy_name(int p_idx);
+	virtual Array get_connected_joysticks();
+	virtual Vector2 get_joy_vibration_strength(int p_device);
+	virtual float get_joy_vibration_duration(int p_device);
+	virtual uint64_t get_joy_vibration_timestamp(int p_device);
 	void joy_connection_changed(int p_idx, bool p_connected, String p_name, String p_guid = "");
 	void parse_joystick_mapping(String p_mapping, bool p_update_existing);
 
@@ -146,6 +191,9 @@ public:
 	void set_accelerometer(const Vector3& p_accel);
 	void set_magnetometer(const Vector3& p_magnetometer);
 	void set_joy_axis(int p_device,int p_axis,float p_value);
+
+	virtual void start_joy_vibration(int p_device, float p_weak_magnitude, float p_strong_magnitude, float p_duration=0);
+	virtual void stop_joy_vibration(int p_device);
 
 	void set_main_loop(MainLoop *main_loop);
 	void set_mouse_pos(const Point2& p_posf);

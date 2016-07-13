@@ -302,8 +302,15 @@ bool SceneTreeEditor::_add_nodes(Node *p_node,TreeItem *p_parent) {
 
 	item->set_selectable(0,true);
 	if (can_rename) {
-
-		bool collapsed = p_node->has_meta("_editor_collapsed") ? (bool)p_node->get_meta("_editor_collapsed") : false;
+#ifdef ENABLE_DEPRECATED
+		if (p_node->has_meta("_editor_collapsed")) {
+			//remove previous way of storing folding, which did not get along with scene inheritance and instancing
+			if ((bool)p_node->get_meta("_editor_collapsed"))
+				p_node->set_display_folded(true);
+			p_node->set_meta("_editor_collapsed",Variant());
+		}
+#endif
+		bool collapsed = p_node->is_displayed_folded();
 		if (collapsed)
 			item->set_collapsed(true);
 	}
@@ -653,6 +660,8 @@ void SceneTreeEditor::_notification(int p_what) {
 		inheritance_menu->set_item_icon(2,get_icon("Load","EditorIcons"));
 		clear_inherit_confirm->connect("confirmed",this,"_subscene_option",varray(SCENE_MENU_CLEAR_INHERITANCE_CONFIRM));
 
+		EditorSettings::get_singleton()->connect("settings_changed",this,"_editor_settings_changed");
+
 
 //		get_scene()->connect("tree_changed",this,"_tree_changed",Vector<Variant>(),CONNECT_DEFERRED);
 //		get_scene()->connect("node_removed",this,"_node_removed",Vector<Variant>(),CONNECT_DEFERRED);
@@ -665,6 +674,7 @@ void SceneTreeEditor::_notification(int p_what) {
 		tree->disconnect("item_collapsed",this,"_cell_collapsed");
 		clear_inherit_confirm->disconnect("confirmed",this,"_subscene_option");
 		get_tree()->disconnect("node_configuration_warning_changed",this,"_warning_changed");
+		EditorSettings::get_singleton()->disconnect("settings_changed",this,"_editor_settings_changed");
 	}
 
 }
@@ -893,10 +903,7 @@ void SceneTreeEditor::_cell_collapsed(Object *p_obj) {
 	Node *n=get_node(np);
 	ERR_FAIL_COND(!n);
 
-	if (collapsed)
-		n->set_meta("_editor_collapsed",true);
-	else
-		n->set_meta("_editor_collapsed",Variant());
+	n->set_display_folded(collapsed);
 
 }
 
@@ -1048,6 +1055,21 @@ void SceneTreeEditor::_warning_changed(Node* p_for_node) {
 
 }
 
+
+void SceneTreeEditor::_editor_settings_changed() {
+	bool enable_rl = EditorSettings::get_singleton()->get("scenetree_editor/draw_relationship_lines");
+	Color rl_color = EditorSettings::get_singleton()->get("scenetree_editor/relationship_line_color");
+
+	if (enable_rl) {
+		tree->add_constant_override("draw_relationship_lines",1);
+		tree->add_color_override("relationship_line_color", rl_color);
+	}
+	else
+		tree->add_constant_override("draw_relationship_lines",0);
+
+}
+
+
 void SceneTreeEditor::_bind_methods() {
 
 	ObjectTypeDB::bind_method("_tree_changed",&SceneTreeEditor::_tree_changed);
@@ -1067,6 +1089,8 @@ void SceneTreeEditor::_bind_methods() {
 
 	ObjectTypeDB::bind_method("_node_script_changed",&SceneTreeEditor::_node_script_changed);
 	ObjectTypeDB::bind_method("_node_visibility_changed",&SceneTreeEditor::_node_visibility_changed);
+
+	ObjectTypeDB::bind_method("_editor_settings_changed", &SceneTreeEditor::_editor_settings_changed);
 
 	ObjectTypeDB::bind_method(_MD("get_drag_data_fw"), &SceneTreeEditor::get_drag_data_fw);
 	ObjectTypeDB::bind_method(_MD("can_drop_data_fw"), &SceneTreeEditor::can_drop_data_fw);
@@ -1252,4 +1276,3 @@ SceneTreeDialog::SceneTreeDialog() {
 SceneTreeDialog::~SceneTreeDialog()
 {
 }
-

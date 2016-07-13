@@ -30,6 +30,7 @@
 #include "tools/editor/editor_settings.h"
 
 #include "spatial_editor_plugin.h"
+#include "scene/resources/shader_graph.h"
 #include "io/resource_loader.h"
 #include "io/resource_saver.h"
 #include "os/keyboard.h"
@@ -77,6 +78,11 @@ void ShaderTextEditor::_load_theme_settings() {
 	/* keyword color */
 
 	get_text_edit()->set_custom_bg_color(EDITOR_DEF("text_editor/background_color",Color(0,0,0,0)));
+	get_text_edit()->add_color_override("completion_background_color", EDITOR_DEF("text_editor/completion_background_color", Color(0,0,0,0)));
+	get_text_edit()->add_color_override("completion_selected_color", EDITOR_DEF("text_editor/completion_selected_color", Color::html("434244")));
+	get_text_edit()->add_color_override("completion_existing_color", EDITOR_DEF("text_editor/completion_existing_color", Color::html("21dfdfdf")));
+	get_text_edit()->add_color_override("completion_scroll_color", EDITOR_DEF("text_editor/completion_scroll_color", Color::html("ffffff")));
+	get_text_edit()->add_color_override("completion_font_color", EDITOR_DEF("text_editor/completion_font_color", Color::html("aaaaaa")));
 	get_text_edit()->add_color_override("font_color",EDITOR_DEF("text_editor/text_color",Color(0,0,0)));
 	get_text_edit()->add_color_override("line_number_color",EDITOR_DEF("text_editor/line_number_color",Color(0,0,0)));
 	get_text_edit()->add_color_override("caret_color",EDITOR_DEF("text_editor/caret_color",Color(0,0,0)));
@@ -114,9 +120,10 @@ void ShaderTextEditor::_load_theme_settings() {
 
 	get_text_edit()->add_color_region("/*","*/",comment_color,false);
 	get_text_edit()->add_color_region("//","",comment_color,false);
-	//colorize strings
+
+	/*//colorize strings
 	Color string_color = EDITOR_DEF("text_editor/string_color",Color::hex(0x6b6f00ff));
-	/*
+
 	List<String> strings;
 	shader->get_shader_mode()->get_string_delimiters(&strings);
 
@@ -143,8 +150,6 @@ void ShaderTextEditor::_validate_script() {
 	String code=get_text_edit()->get_text();
 	//List<StringName> params;
 	//shader->get_param_list(&params);
-
-	print_line("compile: type: "+itos(type)+" code:\n"+code);
 
 	Error err = ShaderLanguage::compile(code,type,NULL,NULL,&errortxt,&line,&col);
 
@@ -496,14 +501,14 @@ ShaderEditor::ShaderEditor() {
 	add_child(edit_menu);
 	edit_menu->set_pos(Point2(5,-1));
 	edit_menu->set_text(TTR("Edit"));
-	edit_menu->get_popup()->add_item(TTR("Undo"),EDIT_UNDO,KEY_MASK_CMD|KEY_Z);
-	edit_menu->get_popup()->add_item(TTR("Redo"),EDIT_REDO,KEY_MASK_CMD|KEY_MASK_SHIFT|KEY_Z);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/undo", TTR("Undo"), KEY_MASK_CMD|KEY_Z), EDIT_UNDO);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/redo", TTR("Redo"), KEY_MASK_CMD|KEY_Y), EDIT_REDO);
 	edit_menu->get_popup()->add_separator();
-	edit_menu->get_popup()->add_item(TTR("Cut"),EDIT_CUT,KEY_MASK_CMD|KEY_X);
-	edit_menu->get_popup()->add_item(TTR("Copy"),EDIT_COPY,KEY_MASK_CMD|KEY_C);
-	edit_menu->get_popup()->add_item(TTR("Paste"),EDIT_PASTE,KEY_MASK_CMD|KEY_V);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/cut", TTR("Cut"), KEY_MASK_CMD|KEY_X), EDIT_CUT);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/copy", TTR("Copy"), KEY_MASK_CMD|KEY_C), EDIT_COPY);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/paste", TTR("Paste"), KEY_MASK_CMD|KEY_V), EDIT_PASTE);
 	edit_menu->get_popup()->add_separator();
-	edit_menu->get_popup()->add_item(TTR("Select All"),EDIT_SELECT_ALL,KEY_MASK_CMD|KEY_A);
+	edit_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/select_all", TTR("Select All"), KEY_MASK_CMD|KEY_A), EDIT_SELECT_ALL);
 	edit_menu->get_popup()->connect("item_pressed", this,"_menu_option");
 
 
@@ -511,13 +516,13 @@ ShaderEditor::ShaderEditor() {
 	add_child(search_menu);
 	search_menu->set_pos(Point2(38,-1));
 	search_menu->set_text(TTR("Search"));
-	search_menu->get_popup()->add_item(TTR("Find.."),SEARCH_FIND,KEY_MASK_CMD|KEY_F);
-	search_menu->get_popup()->add_item(TTR("Find Next"),SEARCH_FIND_NEXT,KEY_F3);
-	search_menu->get_popup()->add_item(TTR("Find Previous"),SEARCH_FIND_PREV,KEY_MASK_SHIFT|KEY_F3);
-	search_menu->get_popup()->add_item(TTR("Replace.."),SEARCH_REPLACE,KEY_MASK_CMD|KEY_R);
+	search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find", TTR("Find.."), KEY_MASK_CMD|KEY_F), SEARCH_FIND);
+	search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find_next", TTR("Find Next"), KEY_F3), SEARCH_FIND_NEXT);
+	search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find_previous", TTR("Find Previous"), KEY_MASK_SHIFT|KEY_F3), SEARCH_FIND_PREV);
+	search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/replace", TTR("Replace.."), KEY_MASK_CMD|KEY_R), SEARCH_REPLACE);
 	search_menu->get_popup()->add_separator();
 //	search_menu->get_popup()->add_item("Locate Symbol..",SEARCH_LOCATE_SYMBOL,KEY_MASK_CMD|KEY_K);
-	search_menu->get_popup()->add_item(TTR("Goto Line.."),SEARCH_GOTO_LINE,KEY_MASK_CMD|KEY_G);
+	search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/goto_line", TTR("Goto Line.."), KEY_MASK_CMD|KEY_L), SEARCH_GOTO_LINE);
 	search_menu->get_popup()->connect("item_pressed", this,"_menu_option");
 
 
@@ -557,34 +562,41 @@ ShaderEditor::ShaderEditor() {
 
 void ShaderEditorPlugin::edit(Object *p_object) {
 
-	if (!p_object->cast_to<Shader>())
+	Shader* s = p_object->cast_to<Shader>();
+	if (!s || s->cast_to<ShaderGraph>()) {
+		shader_editor->hide(); //Dont edit ShaderGraph
 		return;
+	}
 
-	shader_editor->edit(p_object->cast_to<Shader>());
+	if (_2d && s->get_mode()==Shader::MODE_CANVAS_ITEM)
+		shader_editor->edit(s);
+	else if (!_2d && s->get_mode()==Shader::MODE_MATERIAL)
+		shader_editor->edit(s);
 
 }
 
 bool ShaderEditorPlugin::handles(Object *p_object) const {
 
+	bool handles = true;
 	Shader *shader=p_object->cast_to<Shader>();
-	if (!shader)
-		return false;
-	if (_2d)
-		return shader->get_mode()==Shader::MODE_CANVAS_ITEM;
-	else
+	if (!shader || shader->cast_to<ShaderGraph>()) // Dont handle ShaderGraph's
+		handles = false;
+	if (handles && _2d)
+		handles = shader->get_mode()==Shader::MODE_CANVAS_ITEM;
+	else if (handles && !_2d)
 		return shader->get_mode()==Shader::MODE_MATERIAL;
+
+	if (!handles)
+		shader_editor->hide();
+	return handles;
 }
 
 void ShaderEditorPlugin::make_visible(bool p_visible) {
 
 	if (p_visible) {
 		shader_editor->show();
-		//shader_editor->set_process(true);
 	} else {
-
 		shader_editor->apply_shaders();
-		//shader_editor->hide();
-		//shader_editor->set_process(false);
 	}
 
 }

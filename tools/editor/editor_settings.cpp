@@ -63,7 +63,6 @@ bool EditorSettings::_set(const StringName& p_name, const Variant& p_value) {
 
 		Array arr=p_value;
 		ERR_FAIL_COND_V(arr.size() && arr.size()&1,true);
-		print_line("shortcuts: "+Variant(arr).get_construct_string());
 		for(int i=0;i<arr.size();i+=2) {
 
 			String name = arr[i];
@@ -105,12 +104,17 @@ bool EditorSettings::_get(const StringName& p_name,Variant &r_ret) const {
 		for (const Map<String,Ref<ShortCut> >::Element *E=shortcuts.front();E;E=E->next()) {
 
 			Ref<ShortCut> sc=E->get();
-			if (!sc->has_meta("original"))
-				continue; //this came from settings but is not any longer used
 
-			InputEvent original = sc->get_meta("original");
-			if (sc->is_shortcut(original) || (original.type==InputEvent::NONE && sc->get_shortcut().type==InputEvent::NONE))
-				continue; //not changed from default, don't save
+			if (optimize_save) {
+				if (!sc->has_meta("original")) {
+					continue; //this came from settings but is not any longer used
+				}
+
+				InputEvent original = sc->get_meta("original");
+				if (sc->is_shortcut(original) || (original.type==InputEvent::NONE && sc->get_shortcut().type==InputEvent::NONE))
+					continue; //not changed from default, don't save
+			}
+
 			arr.push_back(E->key());
 			arr.push_back(sc->get_shortcut());
 		}
@@ -162,7 +166,7 @@ void EditorSettings::_get_property_list(List<PropertyInfo> *p_list) const {
 	for(Set<_EVCSort>::Element *E=vclist.front();E;E=E->next()) {
 
 		int pinfo = 0;
-		if (E->get().save) {
+		if (E->get().save || !optimize_save) {
 			pinfo|=PROPERTY_USAGE_STORAGE;
 		}
 
@@ -381,7 +385,7 @@ void EditorSettings::create() {
 	singleton->save_changed_setting=true;
 	singleton->config_file_path=config_file_path;
 	singleton->settings_path=config_path+"/"+config_dir;
-	singleton->_load_defaults(extra_config);	
+	singleton->_load_defaults(extra_config);
 	singleton->setup_language();
 	singleton->setup_network();
 	singleton->list_text_editor_themes();
@@ -399,14 +403,11 @@ String EditorSettings::get_settings_path() const {
 void EditorSettings::setup_language() {
 
 	String lang = get("global/editor_language");
-	print_line("LANG IS "+lang);
 	if (lang=="en")
 		return; //none to do
 
 	for(int i=0;i<translations.size();i++) {
-		print_line("TESTING "+translations[i]->get_locale());
 		if (translations[i]->get_locale()==lang) {
-			print_line("ok translation");
 			TranslationServer::get_singleton()->set_tool_translation(translations[i]);
 			break;
 		}
@@ -427,7 +428,7 @@ void EditorSettings::setup_network() {
 		if (ip=="127.0.0.1")
 			continue;
 
-		if (lip!="")
+		if (lip=="")
 			lip=ip;
 		if (ip==current)
 			lip=current; //so it saves
@@ -515,9 +516,13 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	set("global/font_size",14);
 	hints["global/font_size"]=PropertyInfo(Variant::INT,"global/font_size",PROPERTY_HINT_RANGE,"10,40,1",PROPERTY_USAGE_DEFAULT|PROPERTY_USAGE_RESTART_IF_CHANGED);
 	set("global/source_font_size",14);
-	hints["global/source_font_size"]=PropertyInfo(Variant::INT,"global/source_font_size",PROPERTY_HINT_RANGE,"10,40,1",PROPERTY_USAGE_DEFAULT|PROPERTY_USAGE_RESTART_IF_CHANGED);
+	hints["global/source_font_size"]=PropertyInfo(Variant::INT,"global/source_font_size",PROPERTY_HINT_RANGE,"8,96,1",PROPERTY_USAGE_DEFAULT|PROPERTY_USAGE_RESTART_IF_CHANGED);
 	set("global/custom_font","");
 	hints["global/custom_font"]=PropertyInfo(Variant::STRING,"global/custom_font",PROPERTY_HINT_GLOBAL_FILE,"*.fnt",PROPERTY_USAGE_DEFAULT|PROPERTY_USAGE_RESTART_IF_CHANGED);
+	set("global/custom_theme","");
+	hints["global/custom_theme"]=PropertyInfo(Variant::STRING,"global/custom_theme",PROPERTY_HINT_GLOBAL_FILE,"*.res,*.tres,*.theme",PROPERTY_USAGE_DEFAULT|PROPERTY_USAGE_RESTART_IF_CHANGED);
+
+
 	set("global/autoscan_project_path","");
 	hints["global/autoscan_project_path"]=PropertyInfo(Variant::STRING,"global/autoscan_project_path",PROPERTY_HINT_GLOBAL_DIR);
 	set("global/default_project_path","");
@@ -563,6 +568,8 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	hints["scenetree_editor/duplicate_node_name_num_separator"]=PropertyInfo(Variant::INT,"scenetree_editor/duplicate_node_name_num_separator",PROPERTY_HINT_ENUM, "None,Space,Underscore,Dash");
 	//set("scenetree_editor/display_old_action_buttons",false);
 	set("scenetree_editor/start_create_dialog_fully_expanded",false);
+	set("scenetree_editor/draw_relationship_lines",false);
+	set("scenetree_editor/relationship_line_color",Color::html("464646"));
 
 	set("gridmap_editor/pick_distance", 5000.0);
 
@@ -581,7 +588,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	set("3d_editor/zoom_modifier",4);
 	hints["3d_editor/zoom_modifier"]=PropertyInfo(Variant::INT,"3d_editor/zoom_modifier",PROPERTY_HINT_ENUM,"None,Shift,Alt,Meta,Ctrl");
 	set("3d_editor/emulate_numpad",false);
-	set("3d_editor/trackpad_hint", false);
+	set("3d_editor/emulate_3_button_mouse", false);
 
 	set("2d_editor/bone_width",5);
 	set("2d_editor/bone_color1",Color(1.0,1.0,1.0,0.9));
@@ -672,6 +679,11 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 
 void EditorSettings::_load_default_text_editor_theme() {
 	set("text_editor/background_color",Color::html("3b000000"));
+	set("text_editor/completion_background_color", Color::html("2C2A32"));
+	set("text_editor/completion_selected_color", Color::html("434244"));
+	set("text_editor/completion_existing_color", Color::html("21dfdfdf"));
+	set("text_editor/completion_scroll_color", Color::html("ffffff"));
+	set("text_editor/completion_font_color", Color::html("aaaaaa"));
 	set("text_editor/caret_color",Color::html("aaaaaa"));
 	set("text_editor/line_number_color",Color::html("66aaaaaa"));
 	set("text_editor/text_color",Color::html("aaaaaa"));
@@ -705,7 +717,6 @@ void EditorSettings::notify_changes() {
 		sml = OS::get_singleton()->get_main_loop()->cast_to<SceneTree>();
 
 	if (!sml) {
-		print_line("not SML");
 		return;
 	}
 
@@ -905,6 +916,11 @@ bool EditorSettings::_save_text_editor_theme(String p_file) {
 	String theme_section = "color_theme";
 	Ref<ConfigFile> cf = memnew( ConfigFile );	// hex is better?
 	cf->set_value(theme_section, "background_color", ((Color)get("text_editor/background_color")).to_html());
+	cf->set_value(theme_section, "completion_background_color", ((Color)get("text_editor/completion_background_color")).to_html());
+	cf->set_value(theme_section, "completion_selected_color", ((Color)get("text_editor/completion_selected_color")).to_html());
+	cf->set_value(theme_section, "completion_existing_color", ((Color)get("text_editor/completion_existing_color")).to_html());
+	cf->set_value(theme_section, "completion_scroll_color", ((Color)get("text_editor/completion_scroll_color")).to_html());
+	cf->set_value(theme_section, "completion_font_color", ((Color)get("text_editor/completion_font_color")).to_html());
 	cf->set_value(theme_section, "caret_color", ((Color)get("text_editor/caret_color")).to_html());
 	cf->set_value(theme_section, "line_number_color", ((Color)get("text_editor/line_number_color")).to_html());
 	cf->set_value(theme_section, "text_color", ((Color)get("text_editor/text_color")).to_html());
@@ -969,6 +985,10 @@ void EditorSettings::get_shortcut_list(List<String> *r_shortcuts) {
 	}
 }
 
+void EditorSettings::set_optimize_save(bool p_optimize) {
+
+	optimize_save=p_optimize;
+}
 
 void EditorSettings::_bind_methods() {
 
@@ -991,6 +1011,7 @@ EditorSettings::EditorSettings() {
 
 	//singleton=this;
 	last_order=0;
+	optimize_save=true;
 	save_changed_setting=true;
 
 	EditorTranslationList *etl=_editor_translations;

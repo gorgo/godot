@@ -1320,14 +1320,16 @@ Array Object::_get_signal_connection_list(const String& p_signal) const{
 	for (List<Connection>::Element *E=conns.front();E;E=E->next()) {
 
 		Connection &c=E->get();
-		Dictionary rc;
-		rc["signal"]=c.signal;
-		rc["method"]=c.method;
-		rc["source"]=c.source;
-		rc["target"]=c.target;
-		rc["binds"]=c.binds;
-		rc["flags"]=c.flags;
-		ret.push_back(rc);
+		if (c.signal == p_signal){
+			Dictionary rc;
+			rc["signal"]=c.signal;
+			rc["method"]=c.method;
+			rc["source"]=c.source;
+			rc["target"]=c.target;
+			rc["binds"]=c.binds;
+			rc["flags"]=c.flags;
+			ret.push_back(rc);
+		}
 	}
 
 	return ret;
@@ -1493,7 +1495,7 @@ void Object::disconnect(const StringName& p_signal, Object *p_to_object, const S
 		ERR_EXPLAIN("Disconnecting nonexistent signal '"+p_signal+"', slot: "+itos(target._id)+":"+target.method);
 		ERR_FAIL();
 	}
-	int prev = p_to_object->connections.size();
+
 	p_to_object->connections.erase(s->slot_map[target].cE);
 	s->slot_map.erase(target);
 

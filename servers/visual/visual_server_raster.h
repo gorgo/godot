@@ -32,7 +32,7 @@
 
 #include "servers/visual_server.h"
 #include "servers/visual/rasterizer.h"
-#include "balloon_allocator.h"
+#include "allocators.h"
 #include "octree.h"
 
 /**
@@ -544,10 +544,12 @@ class VisualServerRaster : public VisualServer {
 		RID texture;
 		Point2 center;
 		bool visible;
+		Rect2 region;
 		Cursor() {
 
 			rot = 0;
 			visible = false;
+			region = Rect2();
 		};
 	};
 
@@ -1240,7 +1242,7 @@ public:
 
 	/* CURSOR */
 	virtual void cursor_set_rotation(float p_rotation, int p_cursor = 0); // radians
-	virtual void cursor_set_texture(RID p_texture, const Point2 &p_center_offset, int p_cursor=0);
+	virtual void cursor_set_texture(RID p_texture, const Point2 &p_center_offset, int p_cursor=0, const Rect2 &p_region=Rect2());
 	virtual void cursor_set_visible(bool p_visible, int p_cursor = 0);
 	virtual void cursor_set_pos(const Point2& p_pos, int p_cursor = 0);
 

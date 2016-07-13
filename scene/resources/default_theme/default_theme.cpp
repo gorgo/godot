@@ -1,13 +1,31 @@
-/*************************************************/
-/*  default_theme.cpp                            */
-/*************************************************/
-/*            This file is part of:              */
-/*                GODOT ENGINE                   */
-/*************************************************/
-/*       Source code within this file is:        */
-/*  (c) 2007-2016 Juan Linietsky, Ariel Manzur   */
-/*             All Rights Reserved.              */
-/*************************************************/
+/*************************************************************************/
+/*  default_theme.cpp                                                    */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 
 #include "default_theme.h"
 
@@ -16,14 +34,8 @@
 #include "theme_data.h"
 #include "os/os.h"
 
-
-#include "normal_font.inc"
-#include "bold_font.inc"
-#include "mono_font.inc"
-
-#include "font_normal.inc"
-#include "font_source.inc"
-#include "font_large.inc"
+#include "font_lodpi.inc"
+#include "font_hidpi.inc"
 
 typedef Map<const void*,Ref<ImageTexture> > TexCacheMap;
 
@@ -124,21 +136,14 @@ static Ref<BitmapFont> make_font(int p_height,int p_ascent, int p_valign, int p_
 	return font;
 }
 
+
+
 static Ref<BitmapFont> make_font2(int p_height,int p_ascent, int p_charcount, const int *p_char_rects,int p_kerning_count,const int *p_kernings,int p_w, int p_h, const unsigned char *p_img) {
 
 
 	Ref<BitmapFont> font( memnew( BitmapFont ) );
 
-	DVector<uint8_t> img;
-	img.resize(p_w*p_h*2);
-	{
-		DVector<uint8_t>::Write w = img.write();
-		for(int i=0;i<(p_w*p_h*2);i++) {
-			w[i]=p_img[i];
-		}
-	}
-
-	Image image(p_w,p_h,0,Image::FORMAT_GRAYSCALE_ALPHA,img);
+	Image image(p_img);
 	Ref<ImageTexture> tex = memnew( ImageTexture );
 	tex->create_from_image(image);
 
@@ -464,8 +469,11 @@ void fill_default_theme(Ref<Theme>& t,const Ref<Font> & default_font,const Ref<F
 
 	t->set_font("font","TextEdit", default_font );
 
+	t->set_color("completion_background_color", "TextEdit",Color::html("2C2A32"));
+	t->set_color("completion_selected_color", "TextEdit",Color::html("434244"));
+	t->set_color("completion_existing_color", "TextEdit",Color::html("21dfdfdf"));
 	t->set_color("completion_scroll_color","TextEdit", control_font_color_pressed );
-	t->set_color("completion_existing","TextEdit", control_font_color );
+	t->set_color("completion_font_color","TextEdit", Color::html("aaaaaa"));
 	t->set_color("font_color","TextEdit", control_font_color );
 	t->set_color("font_color_selected","TextEdit", Color(0,0,0) );
 	t->set_color("selection_color","TextEdit", font_color_selection );
@@ -475,6 +483,11 @@ void fill_default_theme(Ref<Theme>& t,const Ref<Font> & default_font,const Ref<F
 	t->set_color("caret_color","TextEdit", control_font_color );
 	t->set_color("symbol_color","TextEdit", control_font_color_hover );
 	t->set_color("brace_mismatch_color","TextEdit", Color(1,0.2,0.2) );
+	t->set_color("line_number_color","TextEdit",Color::html("66aaaaaa"));
+	t->set_color("function_color","TextEdit",Color::html("66a2ce"));
+	t->set_color("member_variable_color","TextEdit",Color::html("e64e59"));
+	t->set_color("number_color","TextEdit",Color::html("EB9532"));
+	t->set_color("word_highlighted_color","TextEdit",Color(0.8,0.9,0.9,0.15));
 
 	t->set_constant("completion_lines","TextEdit", 7 );
 	t->set_constant("completion_max_width","TextEdit", 50 );
@@ -661,12 +674,14 @@ void fill_default_theme(Ref<Theme>& t,const Ref<Font> & default_font,const Ref<F
 	t->set_color("cursor_color","Tree", Color(0,0,0) );
 	t->set_color("guide_color","Tree", Color(0,0,0,0.1) );
 	t->set_color("drop_position_color","Tree", Color(1,0.3,0.2) );
+	t->set_color("relationship_line_color", "Tree", Color::html("464646") );
 
 	t->set_constant("hseparation","Tree",4 *scale);
 	t->set_constant("vseparation","Tree",4 *scale);
 	t->set_constant("guide_width","Tree",2 *scale);
 	t->set_constant("item_margin","Tree",12 *scale);
 	t->set_constant("button_margin","Tree",4 *scale);
+	t->set_constant("draw_relationship_lines", "Tree", 0);
 
 
 	// ItemList
@@ -687,12 +702,6 @@ void fill_default_theme(Ref<Theme>& t,const Ref<Font> & default_font,const Ref<F
 	t->set_stylebox("selected_focus","ItemList", item_selected );
 	t->set_stylebox("cursor","ItemList", focus );
 	t->set_stylebox("cursor_unfocused","ItemList", focus );
-
-
-	// TextEdit
-
-	t->set_stylebox("completion_selected","TextEdit", tree_selected );
-
 
 
 	// TabContainer
@@ -924,16 +933,23 @@ void fill_default_theme(Ref<Theme>& t,const Ref<Font> & default_font,const Ref<F
 
 }
 
-void make_default_theme() {
+void make_default_theme(bool p_hidpi,Ref<Font> p_font) {
 
 	Ref<Theme> t;
 	t.instance();
 
 	Ref<StyleBox> default_style;
 	Ref<Texture> default_icon;
-	Ref<BitmapFont> default_font=make_font2(_builtin_normal_font_height,_builtin_normal_font_ascent,_builtin_normal_font_charcount,&_builtin_normal_font_charrects[0][0],_builtin_normal_font_kerning_pair_count,&_builtin_normal_font_kerning_pairs[0][0],_builtin_normal_font_img_width,_builtin_normal_font_img_height,_builtin_normal_font_img_data);
-	Ref<BitmapFont> large_font=make_font2(_builtin_large_font_height,_builtin_large_font_ascent,_builtin_large_font_charcount,&_builtin_large_font_charrects[0][0],_builtin_large_font_kerning_pair_count,&_builtin_large_font_kerning_pairs[0][0],_builtin_large_font_img_width,_builtin_large_font_img_height,_builtin_large_font_img_data);
-	fill_default_theme(t,default_font,large_font,default_icon,default_style,false);
+	Ref<BitmapFont> default_font;
+	if (p_font.is_valid()) {
+		default_font=p_font;
+	} if (p_hidpi) {
+		default_font=make_font2(_hidpi_font_height,_hidpi_font_ascent,_hidpi_font_charcount,&_hidpi_font_charrects[0][0],_hidpi_font_kerning_pair_count,&_hidpi_font_kerning_pairs[0][0],_hidpi_font_img_width,_hidpi_font_img_height,_hidpi_font_img_data);
+	} else {
+		default_font=make_font2(_lodpi_font_height,_lodpi_font_ascent,_lodpi_font_charcount,&_lodpi_font_charrects[0][0],_lodpi_font_kerning_pair_count,&_lodpi_font_kerning_pairs[0][0],_lodpi_font_img_width,_lodpi_font_img_height,_lodpi_font_img_data);
+	}
+	Ref<BitmapFont> large_font=default_font;
+	fill_default_theme(t,default_font,large_font,default_icon,default_style,p_hidpi);
 
 	Theme::set_default( t );
 	Theme::set_default_icon( default_icon );
@@ -950,6 +966,3 @@ void clear_default_theme() {
 	Theme::set_default_font( Ref< Font >() );
 
 }
-
-
-

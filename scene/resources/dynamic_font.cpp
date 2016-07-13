@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  dynamic_font.cpp                                                     */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #ifdef FREETYPE_ENABLED
 #include "dynamic_font.h"
 #include "os/file_access.h"
@@ -38,9 +66,20 @@ void DynamicFontData::set_font_path(const String& p_path) {
 	font_path=p_path;
 }
 
+String DynamicFontData::get_font_path() const {
+	return font_path;
+}
+
 void DynamicFontData::set_force_autohinter(bool p_force) {
 
 	force_autohinter=p_force;
+}
+
+void DynamicFontData::_bind_methods() {
+	ObjectTypeDB::bind_method(_MD("set_font_path","path"),&DynamicFontData::set_font_path);
+	ObjectTypeDB::bind_method(_MD("get_font_path"),&DynamicFontData::get_font_path);
+
+	ADD_PROPERTY(PropertyInfo(Variant::STRING,"font_path",PROPERTY_HINT_FILE,"*.ttf,*.otf"),_SCS("set_font_path"),_SCS("get_font_path"));
 }
 
 DynamicFontData::DynamicFontData()
@@ -232,7 +271,7 @@ Size2 DynamicFontAtSize::get_char_size(CharType p_char,CharType p_next,const Vec
 }
 
 
-float DynamicFontAtSize::draw_char(RID p_canvas_item, const Point2& p_pos, const CharType& p_char,const CharType& p_next,const Color& p_modulate,const Vector<Ref<DynamicFontAtSize> >& p_fallbacks) const {
+float DynamicFontAtSize::draw_char(RID p_canvas_item, const Point2& p_pos, CharType p_char,CharType p_next,const Color& p_modulate,const Vector<Ref<DynamicFontAtSize> >& p_fallbacks) const {
 
 	if (!valid)
 		return 0;
@@ -395,7 +434,7 @@ void DynamicFontAtSize::_update_char(CharType p_char) {
 
 	int w = slot->bitmap.width;
 	int h = slot->bitmap.rows;
-	int p = slot->bitmap.pitch;
+	//int p = slot->bitmap.pitch;
 	int yofs=slot->bitmap_top;
 	int xofs=slot->bitmap_left;
 	int advance=slot->advance.x>>6;
@@ -516,7 +555,7 @@ void DynamicFontAtSize::_update_char(CharType p_char) {
 
 		if (tex.texture.is_null()) {
 			tex.texture.instance();
-			tex.texture->create_from_image(img,0/*Texture::FLAG_FILTER*/);
+			tex.texture->create_from_image(img,Texture::FLAG_VIDEO_SURFACE);
 		} else {
 			tex.texture->set_data(img); //update
 		}
@@ -647,7 +686,7 @@ bool DynamicFont::is_distance_field_hint() const{
 	return false;
 }
 
-float DynamicFont::draw_char(RID p_canvas_item, const Point2& p_pos, const CharType& p_char,const CharType& p_next,const Color& p_modulate) const {
+float DynamicFont::draw_char(RID p_canvas_item, const Point2& p_pos, CharType p_char,CharType p_next,const Color& p_modulate) const {
 
 	if (!data_at_size.is_valid())
 		return 0;

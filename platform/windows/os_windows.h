@@ -104,6 +104,8 @@ class OS_Windows : public OS {
 	HINSTANCE	hInstance;		// Holds The Instance Of The Application
 	HWND hWnd;
 
+	uint32_t move_timer_id;
+
 	HCURSOR hCursor;
 
 	Size2 window_rect;
@@ -264,6 +266,7 @@ public:
 	virtual String get_executable_path() const;
 
 	virtual String get_locale() const;
+	virtual LatinKeyboardVariant get_latin_keyboard_variant() const; 
 
 	virtual void move_window_to_foreground();
 	virtual String get_data_dir() const;

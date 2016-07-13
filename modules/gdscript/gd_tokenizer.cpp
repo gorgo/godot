@@ -725,7 +725,7 @@ void GDTokenizerText::_advance() {
 					if (hexa_found) {
 						int val = str.hex_to_int();
 						_make_constant(val);
-					} else if (period_found) {
+					} else if (period_found || exponent_found) {
 						real_t val = str.to_double();
 						//print_line("*%*%*%*% to convert: "+str+" result: "+rtos(val));
 						_make_constant(val);
@@ -1156,7 +1156,6 @@ Vector<uint8_t> GDTokenizerBuffer::parse_code_string(const String& p_code) {
 	GDTokenizerText tt;
 	tt.set_code(p_code);
 	int line=-1;
-	int col=0;
 
 	while(true) {
 

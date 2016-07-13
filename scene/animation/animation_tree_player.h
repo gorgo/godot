@@ -33,7 +33,6 @@
 #include "scene/resources/animation.h"
 #include "scene/3d/spatial.h"
 #include "scene/3d/skeleton.h"
-#include "scene/main/misc.h"
 #include "animation_player.h"
 
 
@@ -112,6 +111,7 @@ private:
 		Variant value;
 
 		bool skip;
+		float total_weight;
 	};
 
 
@@ -274,7 +274,7 @@ private:
 	Map<StringName,NodeBase*> node_map;
 
 	// return time left to finish animation
-	float _process_node(const StringName& p_node,AnimationNode **r_prev_anim, float p_weight,float p_step, bool p_seek=false,const HashMap<NodePath,bool> *p_filter=NULL, float p_reverse_weight=0);
+	float _process_node(const StringName& p_node,AnimationNode **r_prev_anim,float p_step, bool p_seek=false, float p_fallback_weight = 1.0, HashMap<NodePath,float>* p_weights = NULL);
 	void _process_animation(float p_delta);
 	bool reset_request;
 
@@ -284,6 +284,8 @@ private:
 	void _recompute_caches();
 	void _recompute_caches(const StringName& p_node);
 	DVector<String> _get_node_list();
+	
+	void _compute_weights(float *p_fallback_weight, HashMap<NodePath,float> *p_weights, float p_coeff, const HashMap<NodePath,bool> *p_filter = NULL, float p_filtered_coeff = 0);
 
 protected:
 

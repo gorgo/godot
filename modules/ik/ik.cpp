@@ -1,12 +1,12 @@
 /*************************************************************************/
 /*  ik.cpp                                                               */
+/* Copyright (c) 2016 Sergey Lapin <slapinid@gmail.com>                  */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
 /*                    http://www.godotengine.org                         */
 /*************************************************************************/
 /* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
-/* This file is Copyright (c) 2016 Sergey Lapin <slapinid@gmail.com>     */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -241,7 +241,7 @@ void InverseKinematics::_notification(int p_what)
 			}
 		} break;
 		case NOTIFICATION_PROCESS: {
-			float delta = get_process_delta_time();
+
 			Spatial *sksp = skel->cast_to<Spatial>();
 			if (!bound)
 				break;

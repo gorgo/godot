@@ -182,7 +182,9 @@ def configure(env):
 			print("PulseAudio development libraries not found, disabling driver")
 
 	env.Append(CPPFLAGS=['-DX11_ENABLED','-DUNIX_ENABLED','-DGLES2_ENABLED','-DGLES_OVER_GL'])
-	env.Append(LIBS=['GL', 'GLU', 'pthread', 'z', 'dl'])
+	env.Append(LIBS=['GL', 'GLU', 'pthread', 'z'])
+	if (platform.system() == "Linux"):
+		env.Append(LIBS='dl')
 	#env.Append(CPPFLAGS=['-DMPC_FIXED_POINT'])
 
 #host compiler is default..
@@ -209,5 +211,7 @@ def configure(env):
 	if (env["use_static_cpp"]=="yes"):
 		env.Append(LINKFLAGS=['-static-libstdc++'])
 
-	env["x86_opt_gcc"]=True
+	list_of_x86 = ['x86_64', 'x86', 'i386', 'i586']
+	if any(platform.machine() in s for s in list_of_x86):
+		env["x86_opt_gcc"]=True
 

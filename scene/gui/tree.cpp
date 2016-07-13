@@ -811,6 +811,8 @@ void Tree::update_cache() {
 	cache.item_margin=get_constant("item_margin");
 	cache.button_margin=get_constant("button_margin");
 	cache.guide_width=get_constant("guide_width");
+	cache.draw_relationship_lines=get_constant("draw_relationship_lines");
+	cache.relationship_line_color=get_color("relationship_line_color");
 
 	cache.title_button = get_stylebox("title_button_normal");
 	cache.title_button_pressed = get_stylebox("title_button_pressed");
@@ -971,21 +973,11 @@ int Tree::draw_item(const Point2i& p_pos,const Point2& p_draw_ofs, const Size2& 
 
 	/* Draw label, if height fits */
 
-	Point2i guide_from;
 
 		bool skip=(p_item==root && hide_root);
-   // printf("skip (%p == %p && %i) %i\n",p_item,root,hide_root,skip);
 
 
 	if (!skip && (p_pos.y+label_h-cache.offset.y)>0) {
-
-	  //  printf("entering\n");
-
-		int height=label_h;
-
-		Point2i guide_space=Point2i( cache.guide_width , height );
-
-
 
 		if (!hide_folding && p_item->childs) { //has childs, draw the guide box
 
@@ -1038,7 +1030,7 @@ int Tree::draw_item(const Point2i& p_pos,const Point2& p_draw_ofs, const Size2& 
 
 				Point2i o = Point2i( ofs+w-s.width, p_pos.y )-cache.offset+p_draw_ofs;
 
-				if (cache.click_type==Cache::CLICK_BUTTON && cache.click_item==p_item && cache.click_column==i && !p_item->cells[i].buttons[j].disabled) {
+				if (cache.click_type==Cache::CLICK_BUTTON && cache.click_item==p_item && cache.click_column==i && cache.click_index==j && !p_item->cells[i].buttons[j].disabled) {
 					//being pressed
 					cache.button_pressed->draw(get_canvas_item(),Rect2(o,s));
 				}
@@ -1295,9 +1287,21 @@ int Tree::draw_item(const Point2i& p_pos,const Point2& p_draw_ofs, const Size2& 
 
 		while (c) {
 
+			if (cache.draw_relationship_lines == 1){
+				int root_ofs = children_pos.x + (hide_folding?cache.hseparation:cache.item_margin);
+				int parent_ofs = p_pos.x + (hide_folding?cache.hseparation:cache.item_margin);
+				Point2i root_pos = Point2i(root_ofs, children_pos.y + label_h/2)-cache.offset+p_draw_ofs;
+				if (c->get_children() > 0)
+					root_pos -= Point2i(cache.arrow->get_width(),0);
+
+				Point2i parent_pos = Point2i(parent_ofs - cache.arrow->get_width()/2, p_pos.y + label_h/2 + cache.arrow->get_height()/2)-cache.offset+p_draw_ofs;
+				VisualServer::get_singleton()->canvas_item_add_line(ci, root_pos, Point2i(parent_pos.x, root_pos.y), cache.relationship_line_color);
+				VisualServer::get_singleton()->canvas_item_add_line(ci, Point2i(parent_pos.x, root_pos.y), parent_pos, cache.relationship_line_color);
+			}
+
 			int child_h=draw_item(children_pos, p_draw_ofs, p_draw_size, c );
 
-			if (child_h<0)
+			if (child_h<0 && cache.draw_relationship_lines == 0)
 				return -1; // break, stop drawing, no need to anymore
 
 			htotal+=child_h;
@@ -1331,7 +1335,7 @@ int Tree::_count_selected_items(TreeItem* p_from) const {
 	return count;
 
 }
-void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col,TreeItem *p_prev,bool *r_in_range) {
+void Tree::select_single_item(TreeItem *p_selected, TreeItem *p_current, int p_col, TreeItem *p_prev, bool *r_in_range, bool p_force_deselect) {
 
 	TreeItem::Cell &selected_cell=p_selected->cells[p_col];
 
@@ -1340,6 +1344,8 @@ void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col
 		*r_in_range=true;
 		switched=true;
 	}
+
+	bool emitted_row=false;
 
 	for (int i=0;i<columns.size();i++) {
 
@@ -1359,7 +1365,10 @@ void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col
 					selected_item=p_selected;
 					selected_col=0;
 					selected_item=p_selected;
-					emit_signal("item_selected");
+					if (!emitted_row) {
+						emit_signal("item_selected");
+						emitted_row=true;
+					}
 					//if (p_col==i)
 					//	p_current->selected_signal.call(p_col);
 				}
@@ -1400,7 +1409,7 @@ void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col
 			} else {
 
 
-				if (r_in_range && *r_in_range) {
+				if (r_in_range && *r_in_range && !p_force_deselect) {
 
 
 					if (!c.selected && c.selectable) {
@@ -1408,7 +1417,7 @@ void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col
 						emit_signal("multi_selected",p_current,i,true);
 					}
 
-				} else if (!r_in_range){
+				} else if (!r_in_range || p_force_deselect){
 					if (select_mode==SELECT_MULTI && c.selected)
 						emit_signal("multi_selected",p_current,i,false);
 					c.selected=false;
@@ -1427,7 +1436,7 @@ void Tree::select_single_item(TreeItem *p_selected,TreeItem *p_current,int p_col
 
 	while (c) {
 
-		select_single_item(p_selected,c,p_col,p_prev,r_in_range);
+		select_single_item(p_selected,c,p_col,p_prev,r_in_range,p_current->is_collapsed() || p_force_deselect);
 		c=c->next;
 	}
 
@@ -1641,7 +1650,6 @@ int Tree::propagate_mouse_event(const Point2i &p_pos,int x_ofs,int y_ofs,bool p_
 		/* editing */
 
 		bool bring_up_editor=force_select_on_already_selected ? (c.selected && already_selected) : c.selected;
-		bool bring_up_value_editor=false;
 		String editor_text=c.text;
 
 		switch (c.mode) {
@@ -1692,9 +1700,6 @@ int Tree::propagate_mouse_event(const Point2i &p_pos,int x_ofs,int y_ofs,bool p_
 					bring_up_editor=false;
 				} else {
 
-					Ref<Texture> updown = cache.updown;
-
-
 					if (x >= (col_width-item_h/2)) {
 
 						/* touching the combo */
@@ -1741,7 +1746,6 @@ int Tree::propagate_mouse_event(const Point2i &p_pos,int x_ofs,int y_ofs,bool p_
 					}  else {
 
 						editor_text=String::num( p_item->cells[col].val, Math::decimals( p_item->cells[col].step ) );
-						bring_up_value_editor=false;
 						if (select_mode==SELECT_MULTI && get_tree()->get_last_event_id() == focus_in_id)
 							bring_up_editor=false;
 
@@ -2260,7 +2264,7 @@ void Tree::_input_event(InputEvent p_event) {
 				update();
 			}
 
-			if (pressing_for_editor && popup_edited_item && popup_edited_item->get_cell_mode(popup_edited_item_col)==TreeItem::CELL_MODE_RANGE) {
+			if (pressing_for_editor && popup_edited_item &&	(popup_edited_item->get_cell_mode(popup_edited_item_col)==TreeItem::CELL_MODE_RANGE || popup_edited_item->get_cell_mode(popup_edited_item_col)==TreeItem::CELL_MODE_RANGE_EXPRESSION)) {
 				//range drag
 
 				if (!range_drag_enabled) {
@@ -3674,4 +3678,3 @@ Tree::~Tree() {
 	}
 
 }
-

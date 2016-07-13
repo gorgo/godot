@@ -30,6 +30,7 @@
 #include "os/os.h"
 #include "os/keyboard.h"
 #include "tools/editor/editor_settings.h"
+#include "tools/editor/editor_file_system.h"
 
 
 void EditorDirDialog::_update_dir(TreeItem* p_item) {
@@ -77,6 +78,11 @@ void EditorDirDialog::_update_dir(TreeItem* p_item) {
 
 void EditorDirDialog::reload() {
 
+	if (!is_visible()) {
+		must_reload=true;
+		return;
+	}
+
 	tree->clear();
 	TreeItem *root = tree->create_item();
 	root->set_metadata(0,"res://");
@@ -84,13 +90,30 @@ void EditorDirDialog::reload() {
 	root->set_text(0,"/");
 	_update_dir(root);
 	_item_collapsed(root);
+	must_reload=false;
+
 }
+
 
 void EditorDirDialog::_notification(int p_what) {
 
 	if (p_what==NOTIFICATION_ENTER_TREE) {
 		reload();
-		tree->connect("item_collapsed",this,"_item_collapsed",varray(),CONNECT_DEFERRED);
+
+		if (!tree->is_connected("item_collapsed",this,"_item_collapsed")) {
+			tree->connect("item_collapsed",this,"_item_collapsed",varray(),CONNECT_DEFERRED);
+		}
+
+		if (!EditorFileSystem::get_singleton()->is_connected("filesystem_changed",this,"reload")) {
+			EditorFileSystem::get_singleton()->connect("filesystem_changed",this,"reload");
+		}
+
+	}
+
+	if (p_what==NOTIFICATION_VISIBILITY_CHANGED) {
+		if (must_reload && is_visible()) {
+			reload();
+		}
 	}
 }
 
@@ -168,10 +191,14 @@ void EditorDirDialog::ok_pressed() {
 void EditorDirDialog::_make_dir() {
 
 	TreeItem *ti=tree->get_selected();
-	if (!ti)
+	if (!ti) {
+		mkdirerr->set_text("Please select a base directory first");
+		mkdirerr->popup_centered_minsize();
 		return;
+	}
 
 	makedialog->popup_centered_minsize(Size2(250,80));
+	makedirname->grab_focus();
 }
 
 void EditorDirDialog::_make_dir_confirm() {
@@ -181,9 +208,11 @@ void EditorDirDialog::_make_dir_confirm() {
 		return;
 
 	String dir = ti->get_metadata(0);
+
 	DirAccess *d = DirAccess::open(dir);
 	ERR_FAIL_COND(!d);
 	Error err = d->make_dir(makedirname->get_text());
+
 	if (err!=OK) {
 		mkdirerr->popup_centered_minsize(Size2(250,80));
 	} else {
@@ -198,6 +227,7 @@ void EditorDirDialog::_bind_methods() {
 	ObjectTypeDB::bind_method(_MD("_item_collapsed"),&EditorDirDialog::_item_collapsed);
 	ObjectTypeDB::bind_method(_MD("_make_dir"),&EditorDirDialog::_make_dir);
 	ObjectTypeDB::bind_method(_MD("_make_dir_confirm"),&EditorDirDialog::_make_dir_confirm);
+	ObjectTypeDB::bind_method(_MD("reload"),&EditorDirDialog::reload);
 
 	ADD_SIGNAL(MethodInfo("dir_selected",PropertyInfo(Variant::STRING,"dir")));
 }
@@ -237,5 +267,9 @@ EditorDirDialog::EditorDirDialog() {
 	add_child(mkdirerr);
 
 	get_ok()->set_text(TTR("Choose"));
+
+	must_reload=false;
+
+
 
 }

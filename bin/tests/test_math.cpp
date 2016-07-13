@@ -40,6 +40,9 @@
 #include "scene/resources/texture.h"
 #include "vmap.h"
 #include "os/os.h"
+
+#include "method_ptrcall.h"
+
 namespace TestMath {
 
 
@@ -105,8 +108,12 @@ uint32_t ihash3( uint32_t a)
     return a;
 }
 
+
+
+
 MainLoop* test() {
 
+	return NULL;
 
 	{
 
@@ -118,10 +125,7 @@ MainLoop* test() {
 		for (List<StringName>::Element *E=tl.front();E;E=E->next()) {
 
 			Vector<uint8_t> m5b = E->get().operator String().md5_buffer();
-			uint32_t *ub = (uint32_t*)m5b.ptr();
-			//hashes.push_back(ihash(ihash2(ihash3(*ub))));
 			hashes.push_back(hashes.size());
-			//hashes.push_back(E->get().hash());
 
 		}
 

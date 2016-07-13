@@ -55,9 +55,13 @@ public:
 	static int get_language_count();
 	static ScriptLanguage *get_language(int p_idx);
 	static void register_language(ScriptLanguage *p_language);
+	static void unregister_language(ScriptLanguage *p_language);
 
 	static void set_reload_scripts_on_save(bool p_enable);
 	static bool is_reload_scripts_on_save_enabled();
+
+	static void thread_enter();
+	static void thread_exit();
 
 	static void init_languages();
 };
@@ -74,6 +78,7 @@ class Script : public Resource {
 
 protected:
 
+	virtual bool editor_can_reload_from_file() { return false; } // this is handled by editor better
 	void _notification( int p_what);
 	static void _bind_methods();
 
@@ -128,6 +133,12 @@ public:
 	virtual void call_multilevel_reversed(const StringName& p_method,const Variant** p_args,int p_argcount);
 	virtual void notification(int p_notification)=0;
 
+	//this is used by script languages that keep a reference counter of their own
+	//you can make make Ref<> not die when it reaches zero, so deleting the reference
+	//depends entirely from the script
+
+	virtual void refcount_incremented() {}
+	virtual bool refcount_decremented() { return true; } //return true if it can die
 
 	virtual Ref<Script> get_script() const=0;
 
@@ -175,6 +186,12 @@ public:
 	virtual Error complete_code(const String& p_code, const String& p_base_path, Object*p_owner,List<String>* r_options,String& r_call_hint) { return ERR_UNAVAILABLE; }
 	virtual void auto_indent_code(String& p_code,int p_from_line,int p_to_line) const=0;
 	virtual void add_global_constant(const StringName& p_variable,const Variant& p_value)=0;
+
+	/* MULTITHREAD FUNCTIONS */
+
+	//some VMs need to be notified of thread creation/exiting to allocate a stack
+	virtual void thread_enter() {}
+	virtual void thread_exit() {}
 
 	/* DEBUGGER FUNCTIONS */
 

@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  export.cpp                                                           */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "version.h"
 #include "export.h"
 #include "tools/editor/editor_settings.h"
@@ -232,7 +260,7 @@ class EditorExportPlatformAndroid : public EditorExportPlatform {
 	void _fix_manifest(Vector<uint8_t>& p_manifest, bool p_give_internet);
 	void _fix_resources(Vector<uint8_t>& p_manifest);
 	static Error save_apk_file(void *p_userdata,const String& p_path, const Vector<uint8_t>& p_data,int p_file,int p_total);
-	static bool _should_compress_asset(const String& p_path);
+	static bool _should_compress_asset(const String& p_path, const Vector<uint8_t>& p_data);
 
 protected:
 
@@ -794,40 +822,6 @@ void EditorExportPlatformAndroid::_fix_manifest(Vector<uint8_t>& p_manifest,bool
 						}*/
 					}
 
-					if (tname=="application" && /*nspace=="android" &&*/ attrname=="label") {
-
-						print_line("FOUND application");
-						if (attr_value==0xFFFFFFFF) {
-							WARN_PRINT("Application name in a resource, should be plaintext (but you can ignore this).")
-						} else {
-
-							String aname = get_project_name();
-							string_table[attr_value]=aname;
-						}
-					}
-					if (tname=="activity" && /*nspace=="android" &&*/ attrname=="label") {
-
-						print_line("FOUND activity name");
-						if (attr_value==0xFFFFFFFF) {
-							WARN_PRINT("Activity name in a resource, should be plaintext (but you can ignore this)")
-						} else {
-							String aname;
-							if (this->name!="") {
-								aname=this->name;
-							} else {
-								aname = Globals::get_singleton()->get("application/name");
-
-							}
-
-							if (aname=="") {
-								aname=_MKSTR(VERSION_NAME);
-							}
-
-							print_line("APP NAME IS..."+aname);
-							string_table[attr_value]=aname;
-						}
-					}
-
 					if (tname=="uses-permission" && /*nspace=="android" &&*/ attrname=="name") {
 
 						if (value.begins_with("godot.custom")) {
@@ -852,13 +846,11 @@ void EditorExportPlatformAndroid::_fix_manifest(Vector<uint8_t>& p_manifest,bool
 
 					if (tname=="supports-screens" ) {
 
-						if (attr_value==0xFFFFFFFF) {
-							WARN_PRINT("Screen res name in a resource, should be plaintext")
-						} else if (attrname=="smallScreens") {
+						if (attrname=="smallScreens") {
 
 							encode_uint32(screen_support[SCREEN_SMALL]?0xFFFFFFFF:0,&p_manifest[iofs+16]);
 
-						} else if (attrname=="mediumScreens") {
+						} else if (attrname=="normalScreens") {
 
 							encode_uint32(screen_support[SCREEN_NORMAL]?0xFFFFFFFF:0,&p_manifest[iofs+16]);
 
@@ -1003,7 +995,7 @@ Error EditorExportPlatformAndroid::save_apk_file(void *p_userdata,const String& 
 		NULL,
 		0,
 		NULL,
-		_should_compress_asset(p_path) ? Z_DEFLATED : 0,
+		_should_compress_asset(p_path,p_data) ? Z_DEFLATED : 0,
 		Z_DEFAULT_COMPRESSION);
 
 
@@ -1014,7 +1006,7 @@ Error EditorExportPlatformAndroid::save_apk_file(void *p_userdata,const String& 
 
 }
 
-bool EditorExportPlatformAndroid::_should_compress_asset(const String& p_path) {
+bool EditorExportPlatformAndroid::_should_compress_asset(const String& p_path, const Vector<uint8_t>& p_data) {
 
 	/*
 	 *  By not compressing files with little or not benefit in doing so,
@@ -1049,12 +1041,7 @@ bool EditorExportPlatformAndroid::_should_compress_asset(const String& p_path) {
 
 	// -- Compressed resource?
 
-	FileAccess *f=FileAccess::open(p_path,FileAccess::READ);
-	ERR_FAIL_COND_V(!f,true);
-
-	uint8_t header[4];
-	f->get_buffer(header,4);
-	if (header[0]=='R' && header[1]=='S' && header[2]=='C' && header[3]=='C') {
+	if (p_data.size() >= 4 && p_data[0]=='R' && p_data[1]=='S' && p_data[2]=='C' && p_data[3]=='C') {
 		// Already compressed
 		return false;
 	}
@@ -1179,7 +1166,7 @@ Error EditorExportPlatformAndroid::export_project(const String& p_path, bool p_d
 			skip=true;
 		}
 
-		if (file=="lib/armeabi/libgodot_android.so" && !export_arm) {
+		if (file.match("lib/armeabi*/libgodot_android.so") && !export_arm) {
 			skip=true;
 		}
 

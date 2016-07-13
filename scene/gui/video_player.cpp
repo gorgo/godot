@@ -116,7 +116,6 @@ void VideoPlayer::_notification(int p_notification) {
 
 		case NOTIFICATION_ENTER_TREE: {
 
-			//set_idle_process(false); //don't annoy
 			if (stream.is_valid() && autoplay && !get_tree()->is_editor_hint()) {
 				play();
 			}
@@ -141,13 +140,6 @@ void VideoPlayer::_notification(int p_notification) {
 
 			playback->update(delta);
 
-			/*int prev_width = texture->get_width();
-			stream->pop_frame(texture);
-			if (prev_width == 0) {
-				update();
-				minimum_size_changed();
-			};*/
-
 		} break;
 
 		case NOTIFICATION_DRAW: {
@@ -158,8 +150,6 @@ void VideoPlayer::_notification(int p_notification) {
 				return;
 
 			Size2 s=expand?get_size():texture->get_size();
-			RID ci = get_canvas_item();
-			printf("drawing with size %f, %f\n", s.x, s.y);
 			draw_texture_rect(texture,Rect2(Point2(),s),false);
 
 		} break;
@@ -208,10 +198,17 @@ void VideoPlayer::set_stream(const Ref<VideoStream> &p_stream) {
 		playback->set_paused(paused);
 		texture=playback->get_texture();
 
+		const int channels = playback->get_channels();
+
 		AudioServer::get_singleton()->lock();
-		resampler.setup(playback->get_channels(),playback->get_mix_rate(),server_mix_rate,buffering_ms,0);
+		if (channels > 0)
+			resampler.setup(channels,playback->get_mix_rate(),server_mix_rate,buffering_ms,0);
+		else
+			resampler.clear();
 		AudioServer::get_singleton()->unlock();
-		playback->set_mix_callback(_audio_mix_callback,this);
+
+		if (channels > 0)
+			playback->set_mix_callback(_audio_mix_callback,this);
 
 	} else {
 		texture.unref();

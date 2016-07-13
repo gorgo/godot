@@ -65,7 +65,6 @@
 #include "tools/editor/editor_log.h"
 #include "tools/editor/scene_tree_dock.h"
 #include "tools/editor/resources_dock.h"
-#include "tools/editor/optimized_save_dialog.h"
 #include "tools/editor/editor_run_script.h"
 
 #include "tools/editor/editor_run_native.h"
@@ -75,7 +74,6 @@
 #include "tools/editor/editor_sub_scene.h"
 #include "editor_import_export.h"
 #include "editor_reimport_dialog.h"
-#include "import_settings.h"
 #include "tools/editor/editor_plugin.h"
 #include "tools/editor/editor_name_dialog.h"
 
@@ -126,6 +124,7 @@ private:
 		FILE_OPEN_SCENE,
 		FILE_SAVE_SCENE,
 		FILE_SAVE_AS_SCENE,
+		FILE_SAVE_ALL_SCENES,
 		FILE_SAVE_BEFORE_RUN,
 		FILE_SAVE_AND_RUN,
 		FILE_IMPORT_SUBSCENE,
@@ -178,7 +177,6 @@ private:
 		RUN_RELOAD_SCRIPTS,
 		SETTINGS_UPDATE_ALWAYS,
 		SETTINGS_UPDATE_CHANGES,
-		SETTINGS_IMPORT,
 		SETTINGS_EXPORT_PREFERENCES,
 		SETTINGS_PREFERENCES,
 		SETTINGS_OPTIMIZED_PRESETS,
@@ -186,6 +184,7 @@ private:
 		SETTINGS_LAYOUT_DELETE,
 		SETTINGS_LAYOUT_DEFAULT,
 		SETTINGS_LOAD_EXPORT_TEMPLATES,
+		SETTINGS_PICK_MAIN_SCENE,
 		SETTINGS_HELP,
 		SETTINGS_ABOUT,
 		SOURCES_REIMPORT,
@@ -262,7 +261,7 @@ private:
 	TextureProgress *audio_vu;
 	//MenuButton *fileserver_menu;
 
-	TextEdit *load_errors;
+	RichTextLabel *load_errors;
 	AcceptDialog *load_error_dialog;
 
 	//Control *scene_root_base;
@@ -288,6 +287,7 @@ private:
 	ConfirmationDialog *confirmation;
 	ConfirmationDialog *import_confirmation;
 	ConfirmationDialog *open_recent_confirmation;
+	ConfirmationDialog *pick_main_scene;
 	AcceptDialog *accept;
 	AcceptDialog *about;
 	AcceptDialog *warning;
@@ -337,7 +337,6 @@ private:
 	Vector<EditorPlugin*> editor_table;
 
 	EditorReImportDialog *reimport_dialog;
-	ImportSettingsDialog *import_settings;
 
 	ProgressDialog *progress_dialog;
 	BackgroundProgress *progress_hb;
@@ -440,7 +439,7 @@ private:
 
 	void _node_renamed();
 	void _editor_select(int p_which);
-	void _set_scene_metadata(const String &p_file);
+	void _set_scene_metadata(const String &p_file, int p_idx=-1);
 	void _get_scene_metadata(const String& p_file);
 	void _update_title();
 	void _update_scene_tabs();
@@ -450,7 +449,7 @@ private:
 
 	void _rebuild_import_menu();
 
-	void _save_scene(String p_file);
+	void _save_scene(String p_file, int idx = -1);
 
 
 	void _instance_request(const String& p_path);
@@ -554,7 +553,7 @@ private:
 	void _scene_tab_script_edited(int p_tab);
 
 	Dictionary _get_main_scene_state();
-	void _set_main_scene_state(Dictionary p_state);
+	void _set_main_scene_state(Dictionary p_state,Node* p_for_scene);
 
 	int _get_current_main_editor();
 
@@ -653,7 +652,7 @@ public:
 
 	void fix_dependencies(const String& p_for_file);
 	void clear_scene() { _cleanup_scene(); }
-	Error load_scene(const String& p_scene, bool p_ignore_broken_deps=false, bool p_set_inherited=false);
+	Error load_scene(const String& p_scene, bool p_ignore_broken_deps=false, bool p_set_inherited=false, bool p_clear_errors=true);
 	Error load_resource(const String& p_scene);
 
 	bool is_scene_open(const String& p_path);
@@ -693,6 +692,7 @@ public:
 	static void unregister_editor_types();
 
 	Control *get_gui_base() { return gui_base; }
+	Control *get_theme_base() { return gui_base->get_parent_control(); }
 
 	static void add_io_error(const String& p_error);
 
@@ -713,6 +713,8 @@ public:
 	void save_layout();
 
 	void update_keying();
+
+	void reload_scene(const String& p_path);
 
 	bool is_exiting() const { return exiting; }
 
@@ -758,7 +760,7 @@ public:
 		plugins_list = p_plugins_list;
 	}
 
-	Vector<EditorPlugin*> get_plugins_list() {
+	Vector<EditorPlugin*>& get_plugins_list() {
 		return plugins_list;
 	}
 

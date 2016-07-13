@@ -74,6 +74,10 @@ class TextEdit : public Control  {
 		Ref<StyleBox> style_normal;
 		Ref<StyleBox> style_focus;
 		Ref<Font> font;
+		Color completion_background_color;
+		Color completion_selected_color;
+		Color completion_existing_color;
+		Color completion_font_color;
 		Color caret_color;
 		Color line_number_color;
 		Color font_color;
@@ -217,6 +221,7 @@ class TextEdit : public Control  {
 	Timer *caret_blink_timer;
 	bool caret_blink_enabled;
 	bool draw_caret;
+	bool window_has_focus;
 
 	bool setting_row;
 	bool wrap;
@@ -423,6 +428,7 @@ public:
 	void set_current_search_result(int line, int col);
 
 	void set_highlight_all_occurrences(const bool p_enabled);
+	bool is_highlight_all_occurrences_enabled() const;
 	bool is_selection_active() const;
 	int get_selection_from_line() const;
     int get_selection_from_column() const;
@@ -464,6 +470,7 @@ public:
 	void menu_option(int p_option);
 
 	void set_show_line_numbers(bool p_show);
+	bool is_show_line_numbers_enabled() const;
 
 	void set_draw_breakpoint_gutter(bool p_draw);
 	bool is_drawing_breakpoint_gutter() const;

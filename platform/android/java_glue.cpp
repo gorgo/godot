@@ -238,6 +238,10 @@ String _get_class_name(JNIEnv * env, jclass cls, bool* array) {
 
 Variant _jobject_to_variant(JNIEnv * env, jobject obj) {
 
+	if (obj == NULL) {
+		return Variant();
+	}
+	
 	jclass c = env->GetObjectClass(obj);
 	bool array;
 	String name = _get_class_name(env, c, &array);
@@ -259,8 +263,7 @@ Variant _jobject_to_variant(JNIEnv * env, jobject obj) {
 
 		for (int i=0; i<stringCount; i++) {
 			jstring string = (jstring) env->GetObjectArrayElement(arr, i);
-			const char *rawString = env->GetStringUTFChars(string, 0);
-			sarr.push_back(String(rawString));
+			sarr.push_back(String::utf8(env->GetStringUTFChars(string, NULL)));
 			env->DeleteLocalRef(string);
 
 		}
@@ -506,7 +509,7 @@ public:
 			} break;
 			case Variant::BOOL: {
 
-				ret = env->CallBooleanMethodA(instance,E->get().method,v);
+				ret = env->CallBooleanMethodA(instance,E->get().method,v)==JNI_TRUE;
 				//print_line("call bool");
 			} break;
 			case Variant::INT: {
@@ -521,8 +524,7 @@ public:
 			case Variant::STRING: {
 
 				jobject o = env->CallObjectMethodA(instance,E->get().method,v);
-				String str = env->GetStringUTFChars((jstring)o, NULL );
-				ret=str;
+				ret = String::utf8(env->GetStringUTFChars((jstring)o, NULL));
 				env->DeleteLocalRef(o);
 			} break;
 			case Variant::STRING_ARRAY: {
@@ -1563,7 +1565,7 @@ static Variant::Type get_jni_type(const String& p_type) {
 		{"[I",Variant::INT_ARRAY},
 		{"[B",Variant::RAW_ARRAY},
 		{"[F",Variant::REAL_ARRAY},
-		{"[java.lang.String",Variant::STRING_ARRAY},
+		{"[Ljava.lang.String;",Variant::STRING_ARRAY},
 		{"org.godotengine.godot.Dictionary", Variant::DICTIONARY},
 		{NULL,Variant::NIL}
 	};
@@ -1599,7 +1601,7 @@ static const char* get_jni_sig(const String& p_type) {
 		{"[I","[I"},
 		{"[B","[B"},
 		{"[F","[F"},
-		{"[java.lang.String","[Ljava/lang/String;"},
+		{"[Ljava.lang.String;","[Ljava/lang/String;"},
 		{NULL,"V"}
 	};
 

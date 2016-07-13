@@ -107,6 +107,7 @@ public:
 	void set_raw_mode(bool p_enabled);
 	bool is_raw_mode() const;
 
+	void set_focus_on_line_edit();
 
 	ColorPicker();
 };
@@ -132,6 +133,8 @@ public:
 
 	void set_edit_alpha(bool p_show);
 	bool is_editing_alpha() const;
+
+	ColorPicker *get_picker();
 
 	ColorPickerButton();
 };

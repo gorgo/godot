@@ -115,7 +115,17 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
     private int mState;
 	private boolean keep_screen_on=true;
 
-    private void setState(int newState) {
+	static private Intent mCurrentIntent;
+
+	@Override public void onNewIntent(Intent intent) {
+		mCurrentIntent = intent;
+	}
+
+	static public Intent getCurrentIntent() {
+		return mCurrentIntent;
+	}
+
+	private void setState(int newState) {
         if (mState != newState) {
             mState = newState;
             mStatusText.setText(Helpers.getDownloaderStringResourceIDFromState(newState));
@@ -545,6 +555,8 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 			}
 		}
 
+		mCurrentIntent = getIntent();
+
 		initializeGodot();
 
 		
@@ -590,8 +602,8 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 		}
 
 		mView.onResume();
-		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_GAME);
 		GodotLib.focusin();
 		if(use_immersive && Build.VERSION.SDK_INT >= 19.0){ // check if the application runs on an android 4.4+
 			Window window = getWindow();

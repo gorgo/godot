@@ -144,7 +144,6 @@ void Label::_notification(int p_what) {
 		if (!wc)
 			return;
 
-		int c = 0;
 		int line=0;
 		int line_to=lines_skipped + (lines_visible>0?lines_visible:1);
 		while(wc) {
@@ -536,7 +535,9 @@ void Label::set_text(const String& p_string) {
 	if (percent_visible<1)
 		visible_chars=get_total_character_count()*percent_visible;
 	update();
-	minimum_size_changed();
+	if (!autowrap) {
+		minimum_size_changed();
+	}
 
 }
 

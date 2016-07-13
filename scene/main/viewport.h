@@ -39,6 +39,7 @@
 */
 
 class Camera;
+class Camera2D;
 class Listener;
 class Control;
 class CanvasItem;
@@ -374,6 +375,7 @@ public:
 	bool gui_has_modal_stack() const;
 
 	Variant gui_get_drag_data() const;
+	Control *get_modal_stack_top() const;
 
 	virtual String get_configuration_warning() const;
 

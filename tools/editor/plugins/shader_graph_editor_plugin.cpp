@@ -176,7 +176,9 @@ void GraphColorRampEdit::_input_event(const InputEvent& p_event) {
 void GraphColorRampEdit::_notification(int p_what){
 
 	if (p_what==NOTIFICATION_ENTER_TREE) {
-		picker->connect("color_changed",this,"_color_changed");
+		if (!picker->is_connected("color_changed",this,"_color_changed")) {
+			picker->connect("color_changed",this,"_color_changed");
+		}
 	}
 	if (p_what==NOTIFICATION_DRAW) {
 
@@ -184,9 +186,8 @@ void GraphColorRampEdit::_notification(int p_what){
 		Point prev;
 		prev.offset=0;
 		prev.color=Color(0,0,0);
-		int w = get_size().x;
-		int h = get_size().y;
 
+		int h = get_size().y;
 		int total_w = get_size().width-get_size().height-3;
 
 		for(int i=-1;i<points.size();i++) {

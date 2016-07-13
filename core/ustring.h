@@ -46,11 +46,9 @@ public:
 	operator const char*() {return get_data();};
 };
 
-#ifndef CHARTYPE_16BITS
+
 typedef wchar_t CharType;
-#else
-typedef wchar_t uint16_t;
-#endif
+
 
 struct StrRange {
 
@@ -125,6 +123,8 @@ public:
 	bool ends_with(const String& p_string) const;
 	bool is_subsequence_of(const String& p_string) const;
 	bool is_subsequence_ofi(const String& p_string) const;
+	Vector<String> bigrams() const;
+	float similarity(const String& p_string) const;
 	String replace_first(String p_key,String p_with) const;
 	String replace(String p_key,String p_with) const;
 	String replacen(String p_key,String p_with) const;
@@ -140,6 +140,7 @@ public:
 	static String num_int64(int64_t p_num,int base=10,bool capitalize_hex=false);
 	static String chr(CharType p_char);
 	static String md5(const uint8_t *p_md5);
+	static String hex_encode_buffer(const uint8_t *p_buffer, int p_len);
 	bool is_numeric() const;
 	double to_double() const;
 	float to_float() const;
@@ -193,7 +194,9 @@ public:
 	uint32_t hash() const; /* hash the string */
 	uint64_t hash64() const; /* hash the string */
 	String md5_text() const;
+	String sha256_text() const;
 	Vector<uint8_t> md5_buffer() const;
+	Vector<uint8_t> sha256_buffer() const;
 
 	inline bool empty() const { return length() == 0; }
 

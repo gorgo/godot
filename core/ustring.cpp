@@ -32,6 +32,7 @@
 #include "print_string.h"
 #include "math_funcs.h"
 #include "io/md5.h"
+#include "io/sha256.h"
 #include "ucaps.h"
 #include "color.h"
 #include "variant.h"
@@ -256,13 +257,10 @@ bool String::operator==(const StrRange &p_range) const {
 		return true;
 
 	const CharType *c_str=p_range.c_str;
-
-	int l=length();
-
-	const CharType *dst = p_range.c_str;
+	const CharType *dst = &operator[](0);
 
 	/* Compare char by char */
-	for (int i=0;i<l;i++) {
+	for (int i=0;i<len;i++) {
 
 		if (c_str[i]!=dst[i])
 			return false;
@@ -849,21 +847,23 @@ const CharType * String::c_str() const {
 }
 
 String String::md5(const uint8_t *p_md5) {
+	return String::hex_encode_buffer(p_md5, 16);
+}
+
+String String::hex_encode_buffer(const uint8_t *p_buffer, int p_len) {
+	static const char hex[16]={'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
 	String ret;
+	char v[2]={0,0};
 
-	for(int i=0;i<16;i++) {
-
-		static const char hex[16]={'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
-		char v[2]={0,0};
-		v[0]=hex[p_md5[i]>>4];
+	for(int i=0;i<p_len;i++) {
+		v[0]=hex[p_buffer[i]>>4];
 		ret+=v;
-		v[0]=hex[p_md5[i]&0xF];
+		v[0]=hex[p_buffer[i]&0xF];
 		ret+=v;
 	}
 
 	return ret;
-
 }
 
 String String::chr(CharType p_char) {
@@ -2389,6 +2389,16 @@ String String::md5_text() const {
 	return String::md5(ctx.digest);
 }
 
+String String::sha256_text() const {
+	CharString cs=utf8();
+	unsigned char hash[32];
+	sha256_context ctx;
+	sha256_init(&ctx);
+	sha256_hash(&ctx,(unsigned char*)cs.ptr(),cs.length());
+	sha256_done(&ctx, hash);
+	return String::hex_encode_buffer(hash, 32);
+}
+
 Vector<uint8_t> String::md5_buffer() const {
 
 	CharString cs=utf8();
@@ -2405,6 +2415,23 @@ Vector<uint8_t> String::md5_buffer() const {
 
 	return ret;
 };
+
+Vector<uint8_t> String::sha256_buffer() const {
+	CharString cs = utf8();
+	unsigned char hash[32];
+	sha256_context ctx;
+	sha256_init(&ctx);
+	sha256_hash(&ctx, (unsigned char*)cs.ptr(), cs.length());
+	sha256_done(&ctx, hash);
+
+	Vector<uint8_t> ret;
+	ret.resize(32);
+	for (int i = 0; i < 32; i++) {
+		ret[i] = hash[i];
+	}
+
+	return ret;
+}
 
 
 String String::insert(int p_at_pos,String p_string) const {
@@ -2795,6 +2822,50 @@ bool String::_base_is_subsequence_of(const String& p_string, bool case_insensiti
 	}
 
 	return false;
+}
+
+Vector<String> String::bigrams() const {
+	int n_pairs = length() - 1;
+	Vector<String> b;
+	if(n_pairs <= 0) {
+		return b;
+	}
+	b.resize(n_pairs);
+	for(int i = 0; i < n_pairs; i++) {
+		b[i] = substr(i,2);
+	}
+	return b;
+}
+
+// Similarity according to Sorensen-Dice coefficient
+float String::similarity(const String& p_string) const {
+	if(operator==(p_string)) {
+		// Equal strings are totally similar
+		return 1.0f;
+	}
+	if (length() < 2 || p_string.length() < 2) {
+		// No way to calculate similarity without a single bigram
+		return 0.0f;
+	}
+
+	Vector<String> src_bigrams = bigrams();
+	Vector<String> tgt_bigrams = p_string.bigrams();
+
+	int src_size = src_bigrams.size();
+	int tgt_size = tgt_bigrams.size();
+
+	float sum = src_size + tgt_size;
+	float inter = 0;
+	for (int i = 0; i < src_size; i++) {
+		for (int j = 0; j < tgt_size; j++) {
+			if (src_bigrams[i] == tgt_bigrams[j]) {
+				inter++;
+				break;
+			}
+		}
+	}
+
+	return (2.0f * inter)/sum;
 }
 
 static bool _wildcard_match(const CharType* p_pattern, const CharType* p_string,bool p_case_sensitive) {
@@ -3765,7 +3836,6 @@ String String::lpad(int min_length, const String& character) const {
 String String::sprintf(const Array& values, bool* error) const {
 	String formatted;
 	CharType* self = (CharType*)c_str();
-	int num_items = values.size();
 	bool in_format = false;
 	int value_index = 0;
 	int min_chars;

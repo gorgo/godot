@@ -34,6 +34,7 @@
 #include "editor_node.h"
 #include "io/resource_saver.h"
 #include "editor_settings.h"
+#include "editor_resource_preview.h"
 
 EditorFileSystem *EditorFileSystem::singleton=NULL;
 
@@ -621,31 +622,40 @@ void EditorFileSystem::_scan_new_dir(EditorFileSystemDirectory *p_dir,DirAccess 
 	int total = dirs.size()+files.size();
 	int idx=0;
 
+
 	for (List<String>::Element *E=dirs.front();E;E=E->next(),idx++) {
 
 		if (da->change_dir(E->get())==OK) {
 
-			EditorFileSystemDirectory *efd = memnew( EditorFileSystemDirectory );
+			String d = da->get_current_dir();
 
-			efd->parent=p_dir;
-			efd->name=E->get();
-
-			_scan_new_dir(efd,da,p_progress.get_sub(idx,total));
-
-			int idx=0;
-			for(int i=0;i<p_dir->subdirs.size();i++) {
-
-				if (efd->name<p_dir->subdirs[i]->name)
-					break;
-				idx++;
-			}
-			if (idx==p_dir->subdirs.size()) {
-				p_dir->subdirs.push_back(efd);
+			if (d==cd || !d.begins_with(cd)) {
+				da->change_dir(cd); //avoid recursion
 			} else {
-				p_dir->subdirs.insert(idx,efd);
-			}
 
-			da->change_dir("..");
+
+				EditorFileSystemDirectory *efd = memnew( EditorFileSystemDirectory );
+
+				efd->parent=p_dir;
+				efd->name=E->get();
+
+				_scan_new_dir(efd,da,p_progress.get_sub(idx,total));
+
+				int idx=0;
+				for(int i=0;i<p_dir->subdirs.size();i++) {
+
+					if (efd->name<p_dir->subdirs[i]->name)
+						break;
+					idx++;
+				}
+				if (idx==p_dir->subdirs.size()) {
+					p_dir->subdirs.push_back(efd);
+				} else {
+					p_dir->subdirs.insert(idx,efd);
+				}
+
+				da->change_dir("..");
+			}
 		} else {
 			ERR_PRINTS(TTR("Cannot go into subdir:")+" "+E->get());
 		}
@@ -821,11 +831,9 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir,const S
 			}
 
 		}
+
 		da->list_dir_end();
 		memdelete(da);
-
-
-
 
 	}
 
@@ -841,6 +849,7 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir,const S
 			continue;
 
 		}
+
 		if (_check_meta_sources(p_dir->files[i]->meta)) {
 			ItemAction ia;
 			ia.action=ItemAction::ACTION_FILE_SOURCES_CHANGED;
@@ -851,6 +860,8 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir,const S
 		} else {
 			p_dir->files[i]->meta.sources_changed=false;
 		}
+
+		EditorResourcePreview::get_singleton()->check_for_invalidation(p_dir->get_file_path(i));
 	}
 
 	for(int i=0;i<p_dir->subdirs.size();i++) {
@@ -1321,6 +1332,7 @@ void EditorFileSystem::update_file(const String& p_file) {
 	fs->files[cpos]->modified_time=FileAccess::get_modified_time(p_file);
 	fs->files[cpos]->meta=_get_meta(p_file);
 
+	EditorResourcePreview::get_singleton()->call_deferred("check_for_invalidation",p_file);
 	call_deferred("emit_signal","filesystem_changed"); //update later
 
 }
@@ -1333,6 +1345,8 @@ void EditorFileSystem::_bind_methods() {
 	ADD_SIGNAL( MethodInfo("sources_changed",PropertyInfo(Variant::BOOL,"exist")) );
 
 }
+
+
 
 EditorFileSystem::EditorFileSystem() {
 

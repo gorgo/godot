@@ -60,7 +60,6 @@ protected:
 	bool _get(const StringName& p_name,Variant &r_ret) const;
 	void _get_property_list( List<PropertyInfo> *p_list) const;
 
-	void _shader_changed();
 	static void _bind_methods();
 
 	void get_argument_options(const StringName& p_function,int p_idx,List<String>*r_options) const;
@@ -223,6 +222,7 @@ public:
 	float draw_char(const Ref<Font>& p_font,const Point2& p_pos, const String& p_char,const String& p_next="",const Color& p_modulate=Color(1,1,1));
 
 	void draw_set_transform(const Point2& p_offset, float p_rot, const Size2& p_scale);
+	void draw_set_transform_matrix(const Matrix32& p_matrix);
 
 	/* RECT / TRANSFORM */
 
@@ -263,6 +263,7 @@ public:
 	bool get_use_parent_material() const;
 
 	InputEvent make_input_local(const InputEvent& pevent) const;
+	Vector2 make_canvas_pos_local(const Vector2& screen_point) const;
 
 	Vector2 get_global_mouse_pos() const;
 	Vector2 get_local_mouse_pos() const;

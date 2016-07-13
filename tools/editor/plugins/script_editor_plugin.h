@@ -232,7 +232,9 @@ class ScriptEditor : public VBoxContainer {
 	void _resave_scripts(const String& p_str);
 	void _reload_scripts();
 
-	bool _test_script_times_on_disk();
+	bool _test_script_times_on_disk(Ref<Script> p_for_script=Ref<Script>());
+
+	void _close_tab(int p_idx);
 
 	void _close_current_tab();
 
@@ -279,6 +281,8 @@ class ScriptEditor : public VBoxContainer {
 
 	void _script_split_dragged(float);
 
+	void _unhandled_input(const InputEvent& p_event);
+
 
 	void _history_forward();
 	void _history_back();
@@ -291,7 +295,7 @@ class ScriptEditor : public VBoxContainer {
 	void _go_to_tab(int p_idx);
 	void _update_history_pos(int p_new_pos);
 	void _update_script_colors();
-	void _update_modified_scripts_for_external_editor();
+	void _update_modified_scripts_for_external_editor(Ref<Script> p_for_script=Ref<Script>());
 
 	int file_dialog_option;
 	void _file_dialog_action(String p_file);
@@ -328,6 +332,8 @@ public:
 	bool script_go_to_method(Ref<Script> p_script, const String& p_method);
 
 	virtual void edited_scene_changed();
+
+	void close_builtin_scripts_from_scene(const String& p_scene);
 
 	ScriptEditorDebugger *get_debugger() { return debugger; }
 	void set_live_auto_reload_running_scripts(bool p_enabled);

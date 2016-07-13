@@ -116,7 +116,9 @@ void OS_X11::initialize(const VideoMode& p_desired,int p_video_driver,int p_audi
 	x11_display = XOpenDisplay(NULL);
 
 	char * modifiers = XSetLocaleModifiers ("@im=none");
-	ERR_FAIL_COND( modifiers == NULL );
+	if (modifiers==NULL) {
+		WARN_PRINT("Error setting locale modifiers");
+	}
 
 	const char* err;
 	xrr_get_monitors = NULL;
@@ -344,7 +346,7 @@ void OS_X11::initialize(const VideoMode& p_desired,int p_video_driver,int p_audi
 	/* set the name and class hints for the window manager to use */
 	classHint = XAllocClassHint();
 	if (classHint) {
-		classHint->res_name = (char *)"Godot";
+		classHint->res_name = (char *)"Godot_Engine";
 		classHint->res_class = (char *)"Godot";
 	}
 	XSetClassHint(x11_display, x11_window, classHint);
@@ -1625,7 +1627,7 @@ void OS_X11::process_xevents() {
 
 				//Reply that all is well.
 				XClientMessageEvent m;
-				memset(&m, sizeof(m), 0);
+				memset(&m, 0, sizeof(m));
 				m.type = ClientMessage;
 				m.display = x11_display;
 				m.window = xdnd_source_window;
@@ -1662,7 +1664,7 @@ void OS_X11::process_xevents() {
 				//xdnd position event, reply with an XDND status message
 				//just depending on type of data for now
 				XClientMessageEvent m;
-				memset(&m, sizeof(m), 0);
+				memset(&m, 0, sizeof(m));
 				m.type = ClientMessage;
 				m.display = event.xclient.display;
 				m.window = event.xclient.data.l[0];
@@ -1689,7 +1691,7 @@ void OS_X11::process_xevents() {
 				else {
 					//Reply that we're not interested.
 					XClientMessageEvent m;
-					memset(&m, sizeof(m), 0);
+					memset(&m, 0, sizeof(m));
 					m.type = ClientMessage;
 					m.display = event.xclient.display;
 					m.window = event.xclient.data.l[0];
@@ -1771,7 +1773,6 @@ static String _get_clipboard(Atom p_source, Window x11_window, ::Display* x11_di
 
 	if (Sown == x11_window) {
 
-		printf("returning internal clipboard\n");
 		return p_internal_clipboard;
 	};
 

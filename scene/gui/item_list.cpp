@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  item_list.cpp                                                        */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "item_list.h"
 #include "os/os.h"
 #include "globals.h"
@@ -1217,6 +1245,19 @@ real_t ItemList::get_icon_scale() const {
 	return icon_scale;
 }
 
+Vector<int> ItemList::get_selected_items() {
+	Vector<int> selected;
+	for (int i = 0; i < items.size(); i++) {
+		if (items[i].selected) {
+			selected.push_back(i);
+			if (this->select_mode == SELECT_SINGLE) {
+				break;
+			}
+		}
+	}
+	return selected;
+}
+
 void ItemList::_bind_methods(){
 
 	ObjectTypeDB::bind_method(_MD("add_item","text","icon:Texture","selectable"),&ItemList::add_item,DEFVAL(Variant()),DEFVAL(true));
@@ -1249,6 +1290,7 @@ void ItemList::_bind_methods(){
 	ObjectTypeDB::bind_method(_MD("select","idx","single"),&ItemList::select,DEFVAL(true));
 	ObjectTypeDB::bind_method(_MD("unselect","idx"),&ItemList::unselect);
 	ObjectTypeDB::bind_method(_MD("is_selected","idx"),&ItemList::is_selected);
+	ObjectTypeDB::bind_method(_MD("get_selected_items"),&ItemList::get_selected_items);
 
 	ObjectTypeDB::bind_method(_MD("get_item_count"),&ItemList::get_item_count);
 	ObjectTypeDB::bind_method(_MD("remove_item","idx"),&ItemList::remove_item);
@@ -1301,8 +1343,6 @@ void ItemList::_bind_methods(){
 	ADD_SIGNAL( MethodInfo("multi_selected",PropertyInfo(Variant::INT,"index"),PropertyInfo(Variant::BOOL,"selected")));
 	ADD_SIGNAL( MethodInfo("item_activated",PropertyInfo(Variant::INT,"index")));
 }
-
-
 
 ItemList::ItemList() {
 

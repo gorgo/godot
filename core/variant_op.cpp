@@ -477,7 +477,7 @@ void Variant::evaluate(const Operator& p_op, const Variant& p_a, const Variant& 
 					DEFAULT_OP_FAIL(MATRIX32);
 					DEFAULT_OP_LOCALMEM(+,VECTOR3,Vector3);
 					DEFAULT_OP_FAIL(PLANE);
-					DEFAULT_OP_FAIL(QUAT);
+					DEFAULT_OP_LOCALMEM(+, QUAT, Quat);
 					DEFAULT_OP_FAIL(_AABB);
 					DEFAULT_OP_FAIL(MATRIX3);
 					DEFAULT_OP_FAIL(TRANSFORM);
@@ -535,7 +535,7 @@ void Variant::evaluate(const Operator& p_op, const Variant& p_a, const Variant& 
 				DEFAULT_OP_FAIL(MATRIX32);
 				DEFAULT_OP_LOCALMEM(-,VECTOR3,Vector3);
 				DEFAULT_OP_FAIL(PLANE);
-				DEFAULT_OP_FAIL(QUAT);
+				DEFAULT_OP_LOCALMEM(-, QUAT, Quat);
 				DEFAULT_OP_FAIL(_AABB);
 				DEFAULT_OP_FAIL(MATRIX3);
 				DEFAULT_OP_FAIL(TRANSFORM);
@@ -596,6 +596,9 @@ void Variant::evaluate(const Operator& p_op, const Variant& p_a, const Variant& 
 						case QUAT: {
 
 							_RETURN( *reinterpret_cast<const Quat*>(p_a._data._mem) * *reinterpret_cast<const Quat*>(p_b._data._mem) );
+						} break;
+						case REAL: {
+							_RETURN( *reinterpret_cast<const Quat*>(p_a._data._mem) * p_b._data._real);
 						} break;
 					};
 					r_valid=false;
@@ -699,7 +702,13 @@ void Variant::evaluate(const Operator& p_op, const Variant& p_a, const Variant& 
 				DEFAULT_OP_FAIL(MATRIX32);
 				DEFAULT_OP_LOCALMEM_NUM(/,VECTOR3,Vector3);
 				DEFAULT_OP_FAIL(PLANE);
-				DEFAULT_OP_FAIL(QUAT);
+				case QUAT: {
+					if (p_b.type != REAL) {
+						r_valid = false;
+						return;
+					}
+					_RETURN( *reinterpret_cast<const Quat*>(p_a._data._mem) / p_b._data._real);
+				} break;
 				DEFAULT_OP_FAIL(_AABB);
 				DEFAULT_OP_FAIL(MATRIX3);
 				DEFAULT_OP_FAIL(TRANSFORM);
@@ -2902,6 +2911,14 @@ bool Variant::iter_init(Variant& r_iter,bool &valid) const {
 			return ret;
 		} break;
 
+		case STRING: {
+
+			const String *str=reinterpret_cast<const String*>(_data._mem);
+			if (str->empty())
+				return false;
+			r_iter = 0;
+			return true;
+		} break;
 		case DICTIONARY: {
 
 			const Dictionary *dic=reinterpret_cast<const Dictionary*>(_data._mem);
@@ -3018,6 +3035,17 @@ bool Variant::iter_next(Variant& r_iter,bool &valid) const {
 			r_iter=ref[0];
 
 			return ret;
+		} break;
+
+		case STRING: {
+
+			const String *str=reinterpret_cast<const String*>(_data._mem);
+			int idx = r_iter;
+			idx++;
+			if (idx >= str->size())
+				return false;
+			r_iter = idx;
+			return true;
 		} break;
 		case DICTIONARY: {
 
@@ -3149,6 +3177,11 @@ Variant Variant::iter_get(const Variant& r_iter,bool &r_valid) const {
 			return ret;
 		} break;
 
+		case STRING: {
+
+			const String *str=reinterpret_cast<const String*>(_data._mem);
+			return str->substr(r_iter,1);
+		} break;
 		case DICTIONARY: {
 
 			return r_iter; //iterator is the same as the key

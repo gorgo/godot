@@ -1144,6 +1144,7 @@ Error EditorTextureImportPlugin::import2(const String& p_path, const Ref<Resourc
 
 		if (!p_external) {
 			from->set_editor(get_name());
+			from->set_source_md5(0,FileAccess::get_md5(src_path));
 			existing->set_path(p_path);
 			existing->set_import_metadata(from);
 		}
@@ -1190,8 +1191,6 @@ Error EditorTextureImportPlugin::import2(const String& p_path, const Ref<Resourc
 			tsources.push_back(src);
 		}
 		ep.step(TTR("Converting Images"),sources.size());
-
-		int base_index=0;
 
 
 		Map<uint64_t,int> source_md5;
@@ -1311,21 +1310,30 @@ Error EditorTextureImportPlugin::import2(const String& p_path, const Ref<Resourc
 			ERR_CONTINUE( !source_map.has(i) );
 			for (List<int>::Element *E=source_map[i].front();E;E=E->next()) {
 
-				String apath = p_path.get_base_dir().plus_file(from->get_source_path(E->get()).get_file().basename()+".atex");
+				String apath;
+				String spath = from->get_source_path(E->get()).get_file();
+
+				if (p_external) {
+					apath = p_path.get_base_dir().plus_file(spath.basename()+"."+from->get_source_path(E->get()).md5_text()+".atex");
+				} else {
+					apath = p_path.get_base_dir().plus_file(spath.basename()+".atex");
+				}
 
 				Ref<AtlasTexture> at;
 
 				if (ResourceCache::has(apath)) {
+
 					at = Ref<AtlasTexture>( ResourceCache::get(apath)->cast_to<AtlasTexture>() );
 				} else {
 
 					at = Ref<AtlasTexture>( memnew( AtlasTexture ) );
+
 				}
 				at->set_region(region);
 				at->set_margin(margin);
 				at->set_path(apath);
 				atlases[E->get()]=at;
-				print_line("Atlas Tex: "+apath);
+
 			}
 		}
 		if (ResourceCache::has(p_path)) {
@@ -1750,7 +1758,6 @@ void EditorTextureImportPlugin::reimport_multiple_files(const Vector<String>& p_
 	Vector<String> valid;
 
 
-	bool warning=false;
 	for(int i=0;i<p_list.size();i++) {
 
 		Ref<ResourceImportMetadata> rimd = ResourceLoader::load_import_metadata(p_list[i]);
@@ -1758,7 +1765,6 @@ void EditorTextureImportPlugin::reimport_multiple_files(const Vector<String>& p_
 		if (type=="texture" || type.begins_with("texture_")) {
 
 			if ((rimd->has_option("atlas") && rimd->get_option("atlas")) || (rimd->has_option("large") && rimd->get_option("large"))) {
-				warning=true;
 				continue;
 			}
 

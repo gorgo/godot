@@ -1,7 +1,36 @@
+/*************************************************************************/
+/*  input_default.cpp                                                    */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "input_default.h"
 #include "servers/visual_server.h"
 #include "os/os.h"
 #include "input_map.h"
+#include "scene/resources/texture.h"
 
 void InputDefault::SpeedTrack::update(const Vector2& p_delta_p) {
 
@@ -73,7 +102,7 @@ bool InputDefault::is_action_pressed(const StringName& p_action) {
 
 	const List<InputEvent> *alist = InputMap::get_singleton()->get_action_list(p_action);
 	if (!alist)
-		return NULL;
+		return false;
 
 
 	for (const List<InputEvent>::Element *E=alist->front();E;E=E->next()) {
@@ -137,6 +166,30 @@ String InputDefault::get_joy_name(int p_idx) {
 	return joy_names[p_idx].name;
 };
 
+Vector2 InputDefault::get_joy_vibration_strength(int p_device) {
+	if (joy_vibration.has(p_device)) {
+		return Vector2(joy_vibration[p_device].weak_magnitude, joy_vibration[p_device].strong_magnitude);
+	} else {
+		return Vector2(0, 0);
+	}
+}
+
+uint64_t InputDefault::get_joy_vibration_timestamp(int p_device) {
+	if (joy_vibration.has(p_device)) {
+		return joy_vibration[p_device].timestamp;
+	} else {
+		return 0;
+	}
+}
+
+float InputDefault::get_joy_vibration_duration(int p_device) {
+	if (joy_vibration.has(p_device)) {
+		return joy_vibration[p_device].duration;
+	} else {
+		return 0.f;
+	}
+}
+
 static String _hex_str(uint8_t p_byte) {
 
 	static const char* dict = "0123456789abcdef";
@@ -168,18 +221,18 @@ void InputDefault::joy_connection_changed(int p_idx, bool p_connected, String p_
 			};
 		};
 		js.uid = uidname;
-		//printf("looking for mappings for guid %ls\n", uidname.c_str());
+		js.connected = true;
 		int mapping = fallback_mapping;
 		for (int i=0; i < map_db.size(); i++) {
 			if (js.uid == map_db[i].uid) {
 				mapping = i;
 				js.name = map_db[i].name;
-				//printf("found mapping\n");
 			};
 		};
 		js.mapping = mapping;
 	}
 	else {
+		js.connected = false;
 		for (int i = 0; i < JOY_BUTTON_MAX; i++) {
 
 			if (i < JOY_AXIS_MAX)
@@ -294,6 +347,29 @@ void InputDefault::set_joy_axis(int p_device,int p_axis,float p_value) {
 	_joy_axis[c]=p_value;
 }
 
+void InputDefault::start_joy_vibration(int p_device, float p_weak_magnitude, float p_strong_magnitude, float p_duration) {
+	_THREAD_SAFE_METHOD_
+	if (p_weak_magnitude < 0.f || p_weak_magnitude > 1.f || p_strong_magnitude < 0.f || p_strong_magnitude > 1.f) {
+		return;
+	}
+	VibrationInfo vibration;
+	vibration.weak_magnitude = p_weak_magnitude;
+	vibration.strong_magnitude = p_strong_magnitude;
+	vibration.duration = p_duration;
+	vibration.timestamp = OS::get_singleton()->get_ticks_usec();
+	joy_vibration[p_device] = vibration;
+}
+
+void InputDefault::stop_joy_vibration(int p_device) {
+	_THREAD_SAFE_METHOD_
+	VibrationInfo vibration;
+	vibration.weak_magnitude = 0;
+	vibration.strong_magnitude = 0;
+	vibration.duration = 0;
+	vibration.timestamp = OS::get_singleton()->get_ticks_usec();
+	joy_vibration[p_device] = vibration;
+}
+
 void InputDefault::set_accelerometer(const Vector3& p_accel) {
 
 	_THREAD_SAFE_METHOD_
@@ -388,9 +464,11 @@ void InputDefault::set_custom_mouse_cursor(const RES& p_cursor,const Vector2& p_
 		set_mouse_mode(MOUSE_MODE_VISIBLE);
 		VisualServer::get_singleton()->cursor_set_visible(false);
 	} else {
+		Ref<AtlasTexture> atex = custom_cursor;
+		Rect2 region = atex.is_valid() ? atex->get_region() : Rect2();
 		set_mouse_mode(MOUSE_MODE_HIDDEN);
 		VisualServer::get_singleton()->cursor_set_visible(true);
-		VisualServer::get_singleton()->cursor_set_texture(custom_cursor->get_rid(),p_hotspot);
+		VisualServer::get_singleton()->cursor_set_texture(custom_cursor->get_rid(),p_hotspot, 0, region);
 		VisualServer::get_singleton()->cursor_set_pos(get_mouse_pos());
 	}
 }
@@ -963,4 +1041,16 @@ bool InputDefault::is_joy_mapped(int p_device) {
 
 String InputDefault::get_joy_guid_remapped(int p_device) const {
 	return joy_names[p_device].uid;
+}
+
+Array InputDefault::get_connected_joysticks() {
+	Array ret;
+	Map<int, Joystick>::Element *elem = joy_names.front();
+	while (elem) {
+		if (elem->get().connected) {
+			ret.push_back(elem->key());
+		}
+		elem = elem->next();
+	}
+	return ret;
 }

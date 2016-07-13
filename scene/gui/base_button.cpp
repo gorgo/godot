@@ -31,6 +31,7 @@
 #include "print_string.h"
 #include "button_group.h"
 #include "scene/scene_string_names.h"
+#include "scene/main/viewport.h"
 
 void BaseButton::_input_event(InputEvent p_event) {
 
@@ -225,11 +226,21 @@ void BaseButton::_notification(int p_what) {
 		status.hovering=false;
 		update();
 	}
+	if (p_what==NOTIFICATION_DRAG_BEGIN) {
+
+		if (status.press_attempt) {
+			status.press_attempt=false;
+			status.pressing_button=0;
+			update();
+		}
+	}
+
 	if (p_what==NOTIFICATION_FOCUS_EXIT) {
 
 		if (status.pressing_button && status.press_attempt) {
 			status.press_attempt=false;
 			status.pressing_button=0;
+			update();
 		}
 	}
 
@@ -405,7 +416,11 @@ Ref<ShortCut> BaseButton:: get_shortcut() const {
 
 void BaseButton::_unhandled_input(InputEvent p_event) {
 
-	if (!is_disabled() && is_visible() && shortcut.is_valid() && shortcut->is_shortcut(p_event)) {
+	if (!is_disabled() && is_visible() && p_event.is_pressed() && shortcut.is_valid() && shortcut->is_shortcut(p_event)) {
+
+		if (get_viewport()->get_modal_stack_top() && !get_viewport()->get_modal_stack_top()->is_a_parent_of(this))
+			return; //ignore because of modal window
+
 		if (is_toggle_mode()) {
 			set_pressed(!is_pressed());
 			emit_signal("toggled",is_pressed());

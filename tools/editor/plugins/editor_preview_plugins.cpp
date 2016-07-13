@@ -1,3 +1,31 @@
+/*************************************************************************/
+/*  editor_preview_plugins.cpp                                           */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                    http://www.godotengine.org                         */
+/*************************************************************************/
+/* Copyright (c) 2007-2016 Juan Linietsky, Ariel Manzur.                 */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 #include "editor_preview_plugins.h"
 #include "io/resource_loader.h"
 #include "tools/editor/editor_settings.h"
@@ -8,6 +36,7 @@
 #include "scene/resources/mesh.h"
 #include "scene/resources/bit_mask.h"
 #include "tools/editor/editor_scale.h"
+
 bool EditorTexturePreviewPlugin::handles(const String& p_type) const {
 
 	return (ObjectTypeDB::is_type(p_type,"ImageTexture") || ObjectTypeDB::is_type(p_type, "AtlasTexture"));
@@ -414,7 +443,6 @@ Ref<Texture> EditorScriptPreviewPlugin::generate(const RES& p_from) {
 	Color keyword_color = EditorSettings::get_singleton()->get("text_editor/keyword_color");
 	Color text_color = EditorSettings::get_singleton()->get("text_editor/text_color");
 	Color symbol_color = EditorSettings::get_singleton()->get("text_editor/symbol_color");
-	Color comment_color = EditorSettings::get_singleton()->get("text_editor/comment_color");
 
 
 	for(int i=0;i<thumbnail_size;i++) {
@@ -579,7 +607,7 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 						-1, -1, -1, -1, 2, 4, 6, 8
 					};
 
-					int16_t nibble,signed_nibble,diff,step;
+					int16_t nibble,diff,step;
 
 					ima_adpcm.last_nibble++;
 					const uint8_t *src_ptr=sdata;
@@ -599,10 +627,6 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 						ima_adpcm.step_index=0;
 					if (ima_adpcm.step_index>88)
 						ima_adpcm.step_index=88;
-
-					/*
-					signed_nibble = (nibble&7) * ((nibble&8)?-1:1);
-					diff = (2 * signed_nibble + 1) * step / 4; */
 
 					diff = step >> 3 ;
 					if (nibble & 1)
@@ -641,7 +665,7 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 
 			for(int j=0;j<h;j++) {
 				float v = (j/(float)h) * 2.0 - 1.0;
-				uint8_t* imgofs = &imgw[(j*w+i)*3];
+				uint8_t* imgofs = &imgw[(uint64_t(j)*w+i)*3];
 				if (v>min[0] && v<max[0]) {
 					imgofs[0]=255;
 					imgofs[1]=150;
@@ -659,8 +683,8 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 			float max[2]={-1e10,-1e10};
 			float min[2]={1e10,1e10};
 			int c=stereo?2:1;
-			int from = i*len/w;
-			int to = (i+1)*len/w;
+			int from = uint64_t(i)*len/w;
+			int to = (uint64_t(i)+1)*len/w;
 			if (to>=len)
 				to=len-1;
 
@@ -671,7 +695,7 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 
 					for(int k=from;k<=to;k++) {
 
-						float v = src[k*c+j]/32768.0;
+						float v = src[uint64_t(k)*c+j]/32768.0;
 						if (v>max[j])
 							max[j]=v;
 						if (v<min[j])
@@ -687,7 +711,7 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 
 					for(int k=from;k<=to;k++) {
 
-						float v = src[k*c+j]/128.0;
+						float v = src[uint64_t(k)*c+j]/128.0;
 						if (v>max[j])
 							max[j]=v;
 						if (v<min[j])
@@ -720,15 +744,13 @@ Ref<Texture> EditorSamplePreviewPlugin::generate(const RES& p_from) {
 
 				for(int j=0;j<h;j++) {
 
-					int half,ofs;
+					int half;
 					float v;
 					if (j<(h/2)) {
 						half=0;
-						ofs=0;
 						v = (j/(float)(h/2)) * 2.0 - 1.0;
 					} else {
 						half=1;
-						ofs=h/2;
 						if( (float)(h/2) != 0 ) {
 							v = ((j-(h/2))/(float)(h/2)) * 2.0 - 1.0;
 						} else {

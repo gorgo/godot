@@ -249,6 +249,8 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	VCALL_LOCALMEM1R(String,ends_with);
 	VCALL_LOCALMEM1R(String,is_subsequence_of);
 	VCALL_LOCALMEM1R(String,is_subsequence_ofi);
+	VCALL_LOCALMEM0R(String,bigrams);
+	VCALL_LOCALMEM1R(String,similarity);
 	VCALL_LOCALMEM2R(String,replace);
 	VCALL_LOCALMEM2R(String,replacen);
 	VCALL_LOCALMEM2R(String,insert);
@@ -267,7 +269,9 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	VCALL_LOCALMEM2(String,erase);
 	VCALL_LOCALMEM0R(String,hash);
 	VCALL_LOCALMEM0R(String,md5_text);
+	VCALL_LOCALMEM0R(String,sha256_text);
 	VCALL_LOCALMEM0R(String,md5_buffer);
+	VCALL_LOCALMEM0R(String,sha256_buffer);
 	VCALL_LOCALMEM0R(String,empty);
 	VCALL_LOCALMEM0R(String,is_abs_path);
 	VCALL_LOCALMEM0R(String,is_rel_path);
@@ -508,56 +512,77 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	VCALL_LOCALMEM1R(ByteArray,get);
 	VCALL_LOCALMEM1(ByteArray,push_back);
 	VCALL_LOCALMEM1(ByteArray,resize);
+	VCALL_LOCALMEM2R(ByteArray,insert);
+	VCALL_LOCALMEM1(ByteArray,remove);
 	VCALL_LOCALMEM1(ByteArray,append);
 	VCALL_LOCALMEM1(ByteArray,append_array);
+	VCALL_LOCALMEM0(ByteArray,invert);
 
 	VCALL_LOCALMEM0R(IntArray,size);
 	VCALL_LOCALMEM2(IntArray,set);
 	VCALL_LOCALMEM1R(IntArray,get);
 	VCALL_LOCALMEM1(IntArray,push_back);
 	VCALL_LOCALMEM1(IntArray,resize);
+	VCALL_LOCALMEM2R(IntArray,insert);
+	VCALL_LOCALMEM1(IntArray,remove);
 	VCALL_LOCALMEM1(IntArray,append);
 	VCALL_LOCALMEM1(IntArray,append_array);
+	VCALL_LOCALMEM0(IntArray,invert);
 
 	VCALL_LOCALMEM0R(RealArray,size);
 	VCALL_LOCALMEM2(RealArray,set);
 	VCALL_LOCALMEM1R(RealArray,get);
 	VCALL_LOCALMEM1(RealArray,push_back);
 	VCALL_LOCALMEM1(RealArray,resize);
+	VCALL_LOCALMEM2R(RealArray,insert);
+	VCALL_LOCALMEM1(RealArray,remove);
 	VCALL_LOCALMEM1(RealArray,append);
 	VCALL_LOCALMEM1(RealArray,append_array);
+	VCALL_LOCALMEM0(RealArray,invert);
 
 	VCALL_LOCALMEM0R(StringArray,size);
 	VCALL_LOCALMEM2(StringArray,set);
 	VCALL_LOCALMEM1R(StringArray,get);
 	VCALL_LOCALMEM1(StringArray,push_back);
 	VCALL_LOCALMEM1(StringArray,resize);
+	VCALL_LOCALMEM2R(StringArray,insert);
+	VCALL_LOCALMEM1(StringArray,remove);
 	VCALL_LOCALMEM1(StringArray,append);
 	VCALL_LOCALMEM1(StringArray,append_array);
+	VCALL_LOCALMEM0(StringArray,invert);
 
 	VCALL_LOCALMEM0R(Vector2Array,size);
 	VCALL_LOCALMEM2(Vector2Array,set);
 	VCALL_LOCALMEM1R(Vector2Array,get);
 	VCALL_LOCALMEM1(Vector2Array,push_back);
 	VCALL_LOCALMEM1(Vector2Array,resize);
+	VCALL_LOCALMEM2R(Vector2Array,insert);
+	VCALL_LOCALMEM1(Vector2Array,remove);
 	VCALL_LOCALMEM1(Vector2Array,append);
 	VCALL_LOCALMEM1(Vector2Array,append_array);
+	VCALL_LOCALMEM0(Vector2Array,invert);
 
 	VCALL_LOCALMEM0R(Vector3Array,size);
 	VCALL_LOCALMEM2(Vector3Array,set);
 	VCALL_LOCALMEM1R(Vector3Array,get);
 	VCALL_LOCALMEM1(Vector3Array,push_back);
 	VCALL_LOCALMEM1(Vector3Array,resize);
+	VCALL_LOCALMEM2R(Vector3Array,insert);
+	VCALL_LOCALMEM1(Vector3Array,remove);
 	VCALL_LOCALMEM1(Vector3Array,append);
 	VCALL_LOCALMEM1(Vector3Array,append_array);
+	VCALL_LOCALMEM0(Vector3Array,invert);
 
 	VCALL_LOCALMEM0R(ColorArray,size);
 	VCALL_LOCALMEM2(ColorArray,set);
 	VCALL_LOCALMEM1R(ColorArray,get);
 	VCALL_LOCALMEM1(ColorArray,push_back);
 	VCALL_LOCALMEM1(ColorArray,resize);
+	VCALL_LOCALMEM2R(ColorArray,insert);
+	VCALL_LOCALMEM1(ColorArray,remove);
 	VCALL_LOCALMEM1(ColorArray,append);
 	VCALL_LOCALMEM1(ColorArray,append_array);
+	VCALL_LOCALMEM0(ColorArray,invert);
 
 #define VCALL_PTR0(m_type,m_method)\
 static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Variant** p_args) { reinterpret_cast<m_type*>(p_self._data._ptr)->m_method(); }
@@ -922,9 +947,21 @@ static void _call_##m_type##_##m_method(Variant& r_ret,Variant& p_self,const Var
 	struct ConstantData {
 
 		Map<StringName,int> value;
+#ifdef DEBUG_ENABLED
+		List<StringName> value_ordered;
+#endif
 	};
 
 	static ConstantData* constant_data;
+
+	static void add_constant(int p_type, StringName p_constant_name, int p_constant_value) {
+
+		constant_data[p_type].value[p_constant_name] = p_constant_value;
+#ifdef DEBUG_ENABLED
+		constant_data[p_type].value_ordered.push_back(p_constant_name);
+#endif
+
+	}
 
 };
 
@@ -936,26 +973,32 @@ _VariantCall::ConstantData* _VariantCall::constant_data=NULL;
 Variant Variant::call(const StringName& p_method,const Variant** p_args,int p_argcount,CallError &r_error) {
 
 	Variant ret;
+	call_ptr(p_method,p_args,p_argcount,&ret,r_error);
+	return ret;
+}
+
+void Variant::call_ptr(const StringName& p_method,const Variant** p_args,int p_argcount,Variant* r_ret,CallError &r_error) {
+	Variant ret;
 
 	if (type==Variant::OBJECT) {
 		//call object
 		Object *obj = _get_obj().obj;
 		if (!obj) {
 			r_error.error=CallError::CALL_ERROR_INSTANCE_IS_NULL;
-			return ret;
+			return;
 		}
 #ifdef DEBUG_ENABLED
 		if (ScriptDebugger::get_singleton() && _get_obj().ref.is_null()) {
 			//only if debugging!
 			if (!ObjectDB::instance_validate(obj)) {
 				r_error.error=CallError::CALL_ERROR_INSTANCE_IS_NULL;
-				return ret;
+				return;
 			}
 		}
 
 
 #endif
-		return _get_obj().obj->call(p_method,p_args,p_argcount,r_error);
+		ret=_get_obj().obj->call(p_method,p_args,p_argcount,r_error);
 
 	//else if (type==Variant::METHOD) {
 
@@ -967,14 +1010,15 @@ Variant Variant::call(const StringName& p_method,const Variant** p_args,int p_ar
 #ifdef DEBUG_ENABLED
 		if (!E) {
 			r_error.error=Variant::CallError::CALL_ERROR_INVALID_METHOD;
-			return Variant();
+			return;
 		}
 #endif
 		_VariantCall::FuncData& funcdata = E->get();
 		funcdata.call(ret,*this,p_args,p_argcount,r_error);
 	}
 
-	return ret;
+	if (r_error.error==Variant::CallError::CALL_OK && r_ret)
+		*r_ret=ret;
 }
 
 #define VCALL(m_type,m_method) _VariantCall::_call_##m_type##_##m_method
@@ -1209,9 +1253,15 @@ void Variant::get_numeric_constants_for_type(Variant::Type p_type, List<StringNa
 
 	_VariantCall::ConstantData& cd = _VariantCall::constant_data[p_type];
 
+#ifdef DEBUG_ENABLED
+	for(List<StringName>::Element *E=cd.value_ordered.front();E;E=E->next()) {
+
+		p_constants->push_back(E->get());
+#else
 	for(Map<StringName,int>::Element *E=cd.value.front();E;E=E->next()) {
 
 		p_constants->push_back(E->key());
+#endif
 	}
 }
 
@@ -1273,6 +1323,8 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	ADDFUNC1(STRING,BOOL,String,ends_with,STRING,"text",varray());
 	ADDFUNC1(STRING,BOOL,String,is_subsequence_of,STRING,"text",varray());
 	ADDFUNC1(STRING,BOOL,String,is_subsequence_ofi,STRING,"text",varray());
+	ADDFUNC0(STRING,STRING_ARRAY,String,bigrams,varray());
+	ADDFUNC1(STRING,REAL,String,similarity,STRING,"text",varray());
 
 	ADDFUNC2(STRING,STRING,String,replace,STRING,"what",STRING,"forwhat",varray());
 	ADDFUNC2(STRING,STRING,String,replacen,STRING,"what",STRING,"forwhat",varray());
@@ -1290,11 +1342,13 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	ADDFUNC0(STRING,STRING,String,extension,varray());
 	ADDFUNC0(STRING,STRING,String,basename,varray());
 	ADDFUNC1(STRING,STRING,String,plus_file,STRING,"file",varray());
-	ADDFUNC1(STRING,STRING,String,ord_at,INT,"at",varray());
+	ADDFUNC1(STRING,INT,String,ord_at,INT,"at",varray());
 	ADDFUNC2(STRING,NIL,String,erase,INT,"pos",INT,"chars", varray());
 	ADDFUNC0(STRING,INT,String,hash,varray());
 	ADDFUNC0(STRING,STRING,String,md5_text,varray());
+	ADDFUNC0(STRING,STRING,String,sha256_text,varray());
 	ADDFUNC0(STRING,RAW_ARRAY,String,md5_buffer,varray());
+	ADDFUNC0(STRING,RAW_ARRAY,String,sha256_buffer,varray());
 	ADDFUNC0(STRING,BOOL,String,empty,varray());
 	ADDFUNC0(STRING,BOOL,String,is_abs_path,varray());
 	ADDFUNC0(STRING,BOOL,String,is_rel_path,varray());
@@ -1437,9 +1491,9 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	ADDFUNC0(DICTIONARY,INT,Dictionary,size,varray());
 	ADDFUNC0(DICTIONARY,BOOL,Dictionary,empty,varray());
 	ADDFUNC0(DICTIONARY,NIL,Dictionary,clear,varray());
-	ADDFUNC1(DICTIONARY,BOOL,Dictionary,has,NIL,"value",varray());
-	ADDFUNC1(DICTIONARY,BOOL,Dictionary,has_all,ARRAY,"values",varray());
-	ADDFUNC1(DICTIONARY,NIL,Dictionary,erase,NIL,"value",varray());
+	ADDFUNC1(DICTIONARY,BOOL,Dictionary,has,NIL,"key",varray());
+	ADDFUNC1(DICTIONARY,BOOL,Dictionary,has_all,ARRAY,"keys",varray());
+	ADDFUNC1(DICTIONARY,NIL,Dictionary,erase,NIL,"key",varray());
 	ADDFUNC0(DICTIONARY,INT,Dictionary,hash,varray());
 	ADDFUNC0(DICTIONARY,ARRAY,Dictionary,keys,varray());
 	ADDFUNC0(DICTIONARY,ARRAY,Dictionary,values,varray());
@@ -1471,9 +1525,13 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 
 	ADDFUNC0(RAW_ARRAY,INT,ByteArray,size,varray());
 	ADDFUNC2(RAW_ARRAY,NIL,ByteArray,set,INT,"idx",INT,"byte",varray());
-	//ADDFUNC1(RAW_ARRAY,INT,ByteArray,get,INT,"idx",varray());
 	ADDFUNC1(RAW_ARRAY,NIL,ByteArray,push_back,INT,"byte",varray());
+	ADDFUNC1(RAW_ARRAY,NIL,ByteArray,append,INT,"byte",varray());
+	ADDFUNC1(RAW_ARRAY,NIL,ByteArray,append_array,RAW_ARRAY,"array",varray());
+	ADDFUNC1(RAW_ARRAY,NIL,ByteArray,remove,INT,"idx",varray());
+	ADDFUNC2(RAW_ARRAY,INT,ByteArray,insert,INT,"idx",INT,"byte",varray());
 	ADDFUNC1(RAW_ARRAY,NIL,ByteArray,resize,INT,"idx",varray());
+	ADDFUNC0(RAW_ARRAY,NIL,ByteArray,invert,varray());
 
 	ADDFUNC0(RAW_ARRAY,STRING,ByteArray,get_string_from_ascii,varray());
 	ADDFUNC0(RAW_ARRAY,STRING,ByteArray,get_string_from_utf8,varray());
@@ -1481,39 +1539,63 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 
 	ADDFUNC0(INT_ARRAY,INT,IntArray,size,varray());
 	ADDFUNC2(INT_ARRAY,NIL,IntArray,set,INT,"idx",INT,"integer",varray());
-	//ADDFUNC1(INT_ARRAY,INT,IntArray,get,INT,"idx",varray());
 	ADDFUNC1(INT_ARRAY,NIL,IntArray,push_back,INT,"integer",varray());
+	ADDFUNC1(INT_ARRAY,NIL,IntArray,append,INT,"integer",varray());
+	ADDFUNC1(INT_ARRAY,NIL,IntArray,append_array,INT_ARRAY,"array",varray());
+	ADDFUNC1(INT_ARRAY,NIL,IntArray,remove,INT,"idx",varray());
+	ADDFUNC2(INT_ARRAY,INT,IntArray,insert,INT,"idx",INT,"integer",varray());
 	ADDFUNC1(INT_ARRAY,NIL,IntArray,resize,INT,"idx",varray());
+	ADDFUNC0(INT_ARRAY,NIL,IntArray,invert,varray());
 
 	ADDFUNC0(REAL_ARRAY,INT,RealArray,size,varray());
 	ADDFUNC2(REAL_ARRAY,NIL,RealArray,set,INT,"idx",REAL,"value",varray());
-	//ADDFUNC1(REAL_ARRAY,REAL,RealArray,get,INT,"idx",varray());
 	ADDFUNC1(REAL_ARRAY,NIL,RealArray,push_back,REAL,"value",varray());
+	ADDFUNC1(REAL_ARRAY,NIL,RealArray,append,REAL,"value",varray());
+	ADDFUNC1(REAL_ARRAY,NIL,RealArray,append_array,REAL_ARRAY,"array",varray());
+	ADDFUNC1(REAL_ARRAY,NIL,RealArray,remove,INT,"idx",varray());
+	ADDFUNC2(REAL_ARRAY,INT,RealArray,insert,INT,"idx",REAL,"value",varray());
 	ADDFUNC1(REAL_ARRAY,NIL,RealArray,resize,INT,"idx",varray());
+	ADDFUNC0(REAL_ARRAY,NIL,RealArray,invert,varray());
 
 	ADDFUNC0(STRING_ARRAY,INT,StringArray,size,varray());
 	ADDFUNC2(STRING_ARRAY,NIL,StringArray,set,INT,"idx",STRING,"string",varray());
-	//ADDFUNC1(STRING_ARRAY,STRING,StringArray,get,INT,"idx",varray());
 	ADDFUNC1(STRING_ARRAY,NIL,StringArray,push_back,STRING,"string",varray());
+	ADDFUNC1(STRING_ARRAY,NIL,StringArray,append,STRING,"string",varray());
+	ADDFUNC1(STRING_ARRAY,NIL,StringArray,append_array,STRING_ARRAY,"array",varray());
+	ADDFUNC1(STRING_ARRAY,NIL,StringArray,remove,INT,"idx",varray());
+	ADDFUNC2(STRING_ARRAY,INT,StringArray,insert,INT,"idx",STRING,"string",varray());
 	ADDFUNC1(STRING_ARRAY,NIL,StringArray,resize,INT,"idx",varray());
+	ADDFUNC0(STRING_ARRAY,NIL,StringArray,invert,varray());
 
 	ADDFUNC0(VECTOR2_ARRAY,INT,Vector2Array,size,varray());
 	ADDFUNC2(VECTOR2_ARRAY,NIL,Vector2Array,set,INT,"idx",VECTOR2,"vector2",varray());
-	//ADDFUNC1(VECTOR2_ARRAY,VECTOR2,Vector2Array,get,INT,"idx",varray());
 	ADDFUNC1(VECTOR2_ARRAY,NIL,Vector2Array,push_back,VECTOR2,"vector2",varray());
+	ADDFUNC1(VECTOR2_ARRAY,NIL,Vector2Array,append,VECTOR2,"vector2",varray());
+	ADDFUNC1(VECTOR2_ARRAY,NIL,Vector2Array,append_array,VECTOR2_ARRAY,"array",varray());
+	ADDFUNC1(VECTOR2_ARRAY,NIL,Vector2Array,remove,INT,"idx",varray());
+	ADDFUNC2(VECTOR2_ARRAY,INT,Vector2Array,insert,INT,"idx",VECTOR2,"vector2",varray());
 	ADDFUNC1(VECTOR2_ARRAY,NIL,Vector2Array,resize,INT,"idx",varray());
+	ADDFUNC0(VECTOR2_ARRAY,NIL,Vector2Array,invert,varray());
 
 	ADDFUNC0(VECTOR3_ARRAY,INT,Vector3Array,size,varray());
 	ADDFUNC2(VECTOR3_ARRAY,NIL,Vector3Array,set,INT,"idx",VECTOR3,"vector3",varray());
-	//ADDFUNC1(VECTOR3_ARRAY,VECTOR3,Vector3Array,get,INT,"idx",varray());
 	ADDFUNC1(VECTOR3_ARRAY,NIL,Vector3Array,push_back,VECTOR3,"vector3",varray());
+	ADDFUNC1(VECTOR3_ARRAY,NIL,Vector3Array,append,VECTOR3,"vector3",varray());
+	ADDFUNC1(VECTOR3_ARRAY,NIL,Vector3Array,append_array,VECTOR3_ARRAY,"array",varray());
+	ADDFUNC1(VECTOR3_ARRAY,NIL,Vector3Array,remove,INT,"idx",varray());
+	ADDFUNC2(VECTOR3_ARRAY,INT,Vector3Array,insert,INT,"idx",VECTOR3,"vector3",varray());
 	ADDFUNC1(VECTOR3_ARRAY,NIL,Vector3Array,resize,INT,"idx",varray());
+	ADDFUNC0(VECTOR3_ARRAY,NIL,Vector3Array,invert,varray());
 
 	ADDFUNC0(COLOR_ARRAY,INT,ColorArray,size,varray());
 	ADDFUNC2(COLOR_ARRAY,NIL,ColorArray,set,INT,"idx",COLOR,"color",varray());
-	//ADDFUNC1(COLOR_ARRAY,COLOR,ColorArray,get,INT,"idx",varray());
 	ADDFUNC1(COLOR_ARRAY,NIL,ColorArray,push_back,COLOR,"color",varray());
+	ADDFUNC1(COLOR_ARRAY,NIL,ColorArray,append,COLOR,"color",varray());
+	ADDFUNC1(COLOR_ARRAY,NIL,ColorArray,append_array,COLOR_ARRAY,"array",varray());
+	ADDFUNC1(COLOR_ARRAY,NIL,ColorArray,remove,INT,"idx",varray());
+	ADDFUNC2(COLOR_ARRAY,INT,ColorArray,insert,INT,"idx",COLOR,"color",varray());
 	ADDFUNC1(COLOR_ARRAY,NIL,ColorArray,resize,INT,"idx",varray());
+	ADDFUNC0(COLOR_ARRAY,NIL,ColorArray,invert,varray());
 
 	//pointerbased
 
@@ -1585,10 +1667,10 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 
 	ADDFUNC0(INPUT_EVENT,BOOL,InputEvent,is_pressed,varray());
 	ADDFUNC1(INPUT_EVENT,BOOL,InputEvent,is_action,STRING,"action",varray());
-	ADDFUNC1(INPUT_EVENT,BOOL,InputEvent,is_action_pressed,STRING,"is_action_pressed",varray());
-	ADDFUNC1(INPUT_EVENT,BOOL,InputEvent,is_action_released,STRING,"is_action_released",varray());
+	ADDFUNC1(INPUT_EVENT,BOOL,InputEvent,is_action_pressed,STRING,"action",varray());
+	ADDFUNC1(INPUT_EVENT,BOOL,InputEvent,is_action_released,STRING,"action",varray());
 	ADDFUNC0(INPUT_EVENT,BOOL,InputEvent,is_echo,varray());
-    ADDFUNC2(INPUT_EVENT,NIL,InputEvent,set_as_action,STRING,"action",BOOL,"pressed",varray());
+	ADDFUNC2(INPUT_EVENT,NIL,InputEvent,set_as_action,STRING,"action",BOOL,"pressed",varray());
 
 	/* REGISTER CONSTRUCTORS */
 
@@ -1607,7 +1689,7 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 	_VariantCall::add_constructor(_VariantCall::Plane_init3,Variant::PLANE,"normal",Variant::VECTOR3,"d",Variant::REAL);
 
 	_VariantCall::add_constructor(_VariantCall::Quat_init1,Variant::QUAT,"x",Variant::REAL,"y",Variant::REAL,"z",Variant::REAL,"w",Variant::REAL);
-    _VariantCall::add_constructor(_VariantCall::Quat_init2,Variant::QUAT,"axis",Variant::VECTOR3,"angle",Variant::REAL);
+	_VariantCall::add_constructor(_VariantCall::Quat_init2,Variant::QUAT,"axis",Variant::VECTOR3,"angle",Variant::REAL);
 
 	_VariantCall::add_constructor(_VariantCall::Color_init1,Variant::COLOR,"r",Variant::REAL,"g",Variant::REAL,"b",Variant::REAL,"a",Variant::REAL);
 	_VariantCall::add_constructor(_VariantCall::Color_init2,Variant::COLOR,"r",Variant::REAL,"g",Variant::REAL,"b",Variant::REAL);
@@ -1624,54 +1706,54 @@ _VariantCall::addfunc(Variant::m_vtype,Variant::m_ret,_SCS(#m_method),VCALL(m_cl
 
 	/* REGISTER CONSTANTS */
 
-	_VariantCall::constant_data[Variant::VECTOR3].value["AXIS_X"]=Vector3::AXIS_X;
-	_VariantCall::constant_data[Variant::VECTOR3].value["AXIS_Y"]=Vector3::AXIS_Y;
-	_VariantCall::constant_data[Variant::VECTOR3].value["AXIS_Z"]=Vector3::AXIS_Z;
-
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["NONE"]=InputEvent::NONE;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["KEY"]=InputEvent::KEY;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["MOUSE_MOTION"]=InputEvent::MOUSE_MOTION;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["MOUSE_BUTTON"]=InputEvent::MOUSE_BUTTON;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["JOYSTICK_MOTION"]=InputEvent::JOYSTICK_MOTION;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["JOYSTICK_BUTTON"]=InputEvent::JOYSTICK_BUTTON;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["SCREEN_TOUCH"]=InputEvent::SCREEN_TOUCH;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["SCREEN_DRAG"]=InputEvent::SCREEN_DRAG;
-	_VariantCall::constant_data[Variant::INPUT_EVENT].value["ACTION"]=InputEvent::ACTION;
-
-	_VariantCall::constant_data[Variant::IMAGE].value["COMPRESS_BC"]=Image::COMPRESS_BC;
-	_VariantCall::constant_data[Variant::IMAGE].value["COMPRESS_PVRTC2"]=Image::COMPRESS_PVRTC2;
-	_VariantCall::constant_data[Variant::IMAGE].value["COMPRESS_PVRTC4"]=Image::COMPRESS_PVRTC4;
-	_VariantCall::constant_data[Variant::IMAGE].value["COMPRESS_ETC"]=Image::COMPRESS_ETC;
+	_VariantCall::add_constant(Variant::VECTOR3,"AXIS_X",Vector3::AXIS_X);
+	_VariantCall::add_constant(Variant::VECTOR3,"AXIS_Y",Vector3::AXIS_Y);
+	_VariantCall::add_constant(Variant::VECTOR3,"AXIS_Z",Vector3::AXIS_Z);
 
 
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"NONE",InputEvent::NONE);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"KEY",InputEvent::KEY);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"MOUSE_MOTION",InputEvent::MOUSE_MOTION);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"MOUSE_BUTTON",InputEvent::MOUSE_BUTTON);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"JOYSTICK_MOTION",InputEvent::JOYSTICK_MOTION);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"JOYSTICK_BUTTON",InputEvent::JOYSTICK_BUTTON);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"SCREEN_TOUCH",InputEvent::SCREEN_TOUCH);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"SCREEN_DRAG",InputEvent::SCREEN_DRAG);
+	_VariantCall::add_constant(Variant::INPUT_EVENT,"ACTION",InputEvent::ACTION);
 
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_GRAYSCALE"]=Image::FORMAT_GRAYSCALE;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_INTENSITY"]=Image::FORMAT_INTENSITY;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_GRAYSCALE_ALPHA"]=Image::FORMAT_GRAYSCALE_ALPHA;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_RGB"]=Image::FORMAT_RGB;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_RGBA"]=Image::FORMAT_RGBA;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_INDEXED"]=Image::FORMAT_INDEXED;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_INDEXED_ALPHA"]=Image::FORMAT_INDEXED_ALPHA;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_YUV_422"]=Image::FORMAT_YUV_422;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_YUV_444"]=Image::FORMAT_YUV_444;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_BC1"]=Image::FORMAT_BC1;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_BC2"]=Image::FORMAT_BC2;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_BC3"]=Image::FORMAT_BC3;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_BC4"]=Image::FORMAT_BC4;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_BC5"]=Image::FORMAT_BC5;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_PVRTC2"]=Image::FORMAT_PVRTC2;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_PVRTC2_ALPHA"]=Image::FORMAT_PVRTC2_ALPHA;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_PVRTC4"]=Image::FORMAT_PVRTC4;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_PVRTC4_ALPHA"]=Image::FORMAT_PVRTC4_ALPHA;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_ETC"]=Image::FORMAT_ETC;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_ATC"]=Image::FORMAT_ATC;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_ATC_ALPHA_EXPLICIT"]=Image::FORMAT_ATC_ALPHA_EXPLICIT;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_ATC_ALPHA_INTERPOLATED"]=Image::FORMAT_ATC_ALPHA_INTERPOLATED;
-	_VariantCall::constant_data[Variant::IMAGE].value["FORMAT_CUSTOM"]=Image::FORMAT_CUSTOM;
 
-	_VariantCall::constant_data[Variant::IMAGE].value["INTERPOLATE_NEAREST"]=Image::INTERPOLATE_NEAREST;
-	_VariantCall::constant_data[Variant::IMAGE].value["INTERPOLATE_BILINEAR"]=Image::INTERPOLATE_BILINEAR;
-	_VariantCall::constant_data[Variant::IMAGE].value["INTERPOLATE_CUBIC"]=Image::INTERPOLATE_CUBIC;
+	_VariantCall::add_constant(Variant::IMAGE,"COMPRESS_BC",Image::COMPRESS_BC);
+	_VariantCall::add_constant(Variant::IMAGE,"COMPRESS_PVRTC2",Image::COMPRESS_PVRTC2);
+	_VariantCall::add_constant(Variant::IMAGE,"COMPRESS_PVRTC4",Image::COMPRESS_PVRTC4);
+	_VariantCall::add_constant(Variant::IMAGE,"COMPRESS_ETC",Image::COMPRESS_ETC);
+
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_GRAYSCALE",Image::FORMAT_GRAYSCALE);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_INTENSITY",Image::FORMAT_INTENSITY);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_GRAYSCALE_ALPHA",Image::FORMAT_GRAYSCALE_ALPHA);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_RGB",Image::FORMAT_RGB);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_RGBA",Image::FORMAT_RGBA);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_INDEXED",Image::FORMAT_INDEXED);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_INDEXED_ALPHA",Image::FORMAT_INDEXED_ALPHA);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_YUV_422",Image::FORMAT_YUV_422);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_YUV_444",Image::FORMAT_YUV_444);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_BC1",Image::FORMAT_BC1);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_BC2",Image::FORMAT_BC2);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_BC3",Image::FORMAT_BC3);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_BC4",Image::FORMAT_BC4);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_BC5",Image::FORMAT_BC5);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_PVRTC2",Image::FORMAT_PVRTC2);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_PVRTC2_ALPHA",Image::FORMAT_PVRTC2_ALPHA);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_PVRTC4",Image::FORMAT_PVRTC4);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_PVRTC4_ALPHA",Image::FORMAT_PVRTC4_ALPHA);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_ETC",Image::FORMAT_ETC);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_ATC",Image::FORMAT_ATC);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_ATC_ALPHA_EXPLICIT",Image::FORMAT_ATC_ALPHA_EXPLICIT);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_ATC_ALPHA_INTERPOLATED",Image::FORMAT_ATC_ALPHA_INTERPOLATED);
+	_VariantCall::add_constant(Variant::IMAGE,"FORMAT_CUSTOM",Image::FORMAT_CUSTOM);
+
+	_VariantCall::add_constant(Variant::IMAGE,"INTERPOLATE_NEAREST",Image::INTERPOLATE_NEAREST);
+	_VariantCall::add_constant(Variant::IMAGE,"INTERPOLATE_BILINEAR",Image::INTERPOLATE_BILINEAR);
+	_VariantCall::add_constant(Variant::IMAGE,"INTERPOLATE_CUBIC",Image::INTERPOLATE_CUBIC);
 }
 
 void unregister_variant_methods() {
