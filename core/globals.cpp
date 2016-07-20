@@ -256,17 +256,20 @@ Error Globals::setup(const String& p_path,const String & p_main_pack) {
 	//_load_settings(p_path+"/override.cfg");
 
 	if (p_main_pack!="") {
-
+		if (p_main_pack.begins_with("user://")) {
+			print_line("replacing user:/ witn "+OS::get_singleton()->get_data_dir());
+			p_main_pack.replace_first("user:/", OS::get_singleton()->get_data_dir());
+		}
 		bool ok = _load_resource_pack(p_main_pack);
-		ERR_FAIL_COND_V(!ok,ERR_CANT_OPEN);
+		//ERR_FAIL_COND_V(!ok,ERR_CANT_OPEN);
 
-		if (_load_settings("res://engine.cfg")==OK || _load_settings_binary("res://engine.cfb")==OK) {
+		if (ok && _load_settings("res://engine.cfg")==OK || _load_settings_binary("res://engine.cfb")==OK) {
 
 			_load_settings("res://override.cfg");
 
+			return OK;
 		}
 
-		return OK;
 
 	}
 
@@ -1537,5 +1540,3 @@ Globals::~Globals() {
 
 	singleton=NULL;
 }
-
-
